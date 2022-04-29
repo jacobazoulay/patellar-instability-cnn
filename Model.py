@@ -14,7 +14,7 @@ class KeypointModel(nn.Module):
 
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10) #output is # of keypoints
+        self.fc3 = nn.Linear(84, 6) #output is # of coordinates (3 keypoints)
 
         self.pool = nn.MaxPool2d(2, 2)
 

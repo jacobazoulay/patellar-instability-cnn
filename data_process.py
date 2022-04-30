@@ -53,6 +53,8 @@ def load_data(scale_dim=512, N=None, user_os='mac'):
 
     return data, data_labels
 
+# git test commit
+
 
 def show_image(image, label=None):
     fig = plt.figure(figsize=(5,5))

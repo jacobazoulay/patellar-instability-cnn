@@ -11,6 +11,7 @@ home_dir = os.getcwd()
 # upside-down one.
 # Images will have different brightnesses, contrasts, etc.
 
+
 def load_data(scale_dim=512, N=None, user_os='mac'):
     # Read data labels excel file, which includes image directory location and label (x, y) information
     label_dir = home_dir + '\\labels.xlsx'
@@ -57,7 +58,7 @@ def load_data(scale_dim=512, N=None, user_os='mac'):
 
 
 def show_image(image, label=None):
-    fig = plt.figure(figsize=(5,5))
+    fig = plt.figure(figsize=(5, 5))
     ax = fig.add_subplot(111)
     plt.imshow(image, cmap='gray')
 

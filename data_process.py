@@ -1,42 +1,103 @@
 from pydicom import dcmread
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import cv2
 import os
 
-home_dir = '/Users/jacobazoulay/CS231N_Project/'
-image_path = home_dir + 'Images/JUPITERP065L/SER00001/IMG00001.dcm'
-
-ds = dcmread(image_path)
-image = ds.pixel_array  # pixel data is stored in 'pixel_array' element
-
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.imshow(image, cmap='gray')
-ax.set_xticks([])
-ax.set_yticks([])
-plt.show()
+home_dir = os.getcwd()
 
 # All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
 # upside-down one.
 # Images will have different brightnesses, contrasts, etc.
 
-# pd.read_excel('/Users/jacobazoulay/CS231N_Project/labels.xlsx')
-labels = pd.read_excel(home_dir + 'labels.xlsx')
-print(labels)
+def load_data(scale_dim=512, N=None, user_os='mac'):
+    # Read data labels excel file, which includes image directory location and label (x, y) information
+    label_dir = home_dir + '\\labels.xlsx'
+    if user_os == 'mac':
+        label_dir = label_dir.replace("\\", "/")
+    labels = pd.read_excel(label_dir)
+    data_labels = labels[['superior_patella_x', 'inferior_patella_x',
+                          'tibial_plateau_x', 'superior_patella_y',
+                          'inferior_patella_y', 'tibial_plateau_y']]
+    data_labels = data_labels.to_numpy()[:N]
 
-image_path = home_dir + 'Images/' + labels.iloc[1]['lateral x-ray']
-print(labels.iloc[1]['lateral x-ray'])
-ds = dcmread(image_path)
-image = ds.pixel_array
+    if N is None:
+        N = len(data_labels)
+    data = []
+    for i in range(N):
+        print("Processing image: ", i + 1, " / ", N)
 
-fig = plt.figure(figsize=(15,15))
-ax = fig.add_subplot(111)
+        # load and store images in data array
+        image_path = home_dir + '\\Images\\' + labels.iloc[i]['lateral x-ray']
+        if user_os == 'mac':
+            image_path = image_path.replace("\\", "/")
+        ds = dcmread(image_path)
+        image = ds.pixel_array  # pixel data is stored in 'pixel_array' element which is like a np array
+        data.append(image)
 
-plt.imshow(image, cmap='gray') # x-ray
-plt.scatter(labels.iloc[0]['superior_patella_x'], labels.iloc[0]['superior_patella_y']) # superior patella loc in blue
-plt.scatter(labels.iloc[0]['inferior_patella_x'], labels.iloc[0]['inferior_patella_y']) # inferior patella loc in orange
-plt.scatter(labels.iloc[0]['tibial_plateau_x'], labels.iloc[0]['tibial_plateau_y']) # tibial_plateau loc in green
+        # scale labels
+        if scale_dim is not None:
+            x_pix_dim = image.shape[1]
+            y_pix_dim = image.shape[0]
+            data_labels[i][:3] *= scale_dim / x_pix_dim
+            data_labels[i][3:] *= scale_dim / y_pix_dim
 
-ax.set_xticks([])
-ax.set_yticks([])
-plt.show()
+    # scale images
+    if scale_dim is not None:
+        data = [cv2.resize(image, (scale_dim, scale_dim)) for image in data]
+
+    # convert to np array
+    data = np.array(data)
+    data_labels = np.array(data_labels)
+
+    return data, data_labels
+
+
+def show_image(image, label=None):
+    fig = plt.figure(figsize=(5,5))
+    ax = fig.add_subplot(111)
+    plt.imshow(image, cmap='gray')
+
+    if label is not None:
+        plt.scatter(label[0], label[3])  # superior patella loc in blue
+        plt.scatter(label[1], label[4])  # inferior patella loc in orange
+        plt.scatter(label[2], label[5])  # tibial_plateau loc in green
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.show()
+
+
+def unscale(image, label):
+    pass
+
+
+def save_pix_dim(data):
+    y_pix_dim = [len(image) for image in data]
+    x_pix_dim = [len(image[0]) for image in data]
+
+    y_pix_dim_file = open("y_pix_dim.txt", "w")
+    for element in y_pix_dim:
+        y_pix_dim_file.write(str(element) + "\n")
+    y_pix_dim_file.close()
+
+    x_pix_dim_file = open("x_pix_dim.txt", "w")
+    for element in x_pix_dim:
+        x_pix_dim_file.write(str(element) + "\n")
+    x_pix_dim_file.close()
+
+
+def load_pix_dim():
+    y_pix_dim = open("y_pix_dim.txt").readlines()
+    x_pix_dim = open("x_pix_dim.txt").readlines()
+    y_pix_dim = [int(i) for i in y_pix_dim]
+    x_pix_dim = [int(i) for i in x_pix_dim]
+
+
+data, data_labels = load_data(scale_dim=512, N=10)
+print(data.shape)
+print(data_labels.shape)
+
+for i in range(len(data)):
+    show_image(data[i], data_labels[i])

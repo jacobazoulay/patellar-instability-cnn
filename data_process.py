@@ -5,29 +5,30 @@ import numpy as np
 import cv2
 import os
 
-home_dir = os.getcwd()
 
 # All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
 # upside-down one.
 # Images will have different brightnesses, contrasts, etc.
 
 
-def load_data(scale_dim=512, N=None, user_os='mac'):
-    # Read data labels excel file, which includes image directory location and label (x, y) information
+def load_data(scale_dim=512, n=None, user_os='mac'):
+    home_dir = os.getcwd()
+    # Read data labels Excel file, which includes image directory location and label (x, y) information
     label_dir = home_dir + '\\labels.xlsx'
     if user_os == 'mac':
         label_dir = label_dir.replace("\\", "/")
+    # noinspection PyArgumentList
     labels = pd.read_excel(label_dir)
     data_labels = labels[['superior_patella_x', 'inferior_patella_x',
                           'tibial_plateau_x', 'superior_patella_y',
                           'inferior_patella_y', 'tibial_plateau_y']]
-    data_labels = data_labels.to_numpy()[:N]
+    data_labels = data_labels.to_numpy()[:n]
 
-    if N is None:
-        N = len(data_labels)
+    if n is None:
+        n = len(data_labels)
     data = []
-    for i in range(N):
-        print("Processing image: ", i + 1, " / ", N)
+    for i in range(n):
+        print("Processing image: ", i + 1, " / ", n)
 
         # load and store images in data array
         image_path = home_dir + '\\Images\\' + labels.iloc[i]['lateral x-ray']
@@ -54,8 +55,6 @@ def load_data(scale_dim=512, N=None, user_os='mac'):
 
     return data, data_labels
 
-# git test commit
-
 
 def show_image(image, label=None):
     fig = plt.figure(figsize=(5, 5))
@@ -73,7 +72,7 @@ def show_image(image, label=None):
 
 
 def unscale(image, label):
-    pass
+    raise NotImplementedError
 
 
 def save_pix_dim(data):
@@ -96,11 +95,12 @@ def load_pix_dim():
     x_pix_dim = open("x_pix_dim.txt").readlines()
     y_pix_dim = [int(i) for i in y_pix_dim]
     x_pix_dim = [int(i) for i in x_pix_dim]
+    return x_pix_dim, y_pix_dim
 
 
-data, data_labels = load_data(scale_dim=512, N=10)
-print(data.shape)
-print(data_labels.shape)
+data, data_labels = load_data(scale_dim=512, n=10)
+print('Shape of image array: ', data.shape)
+print('Shape of labels array: ', data_labels.shape)
 
 for i in range(len(data)):
     show_image(data[i], data_labels[i])

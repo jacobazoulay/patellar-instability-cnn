@@ -15,5 +15,6 @@ Authors:
     pip install -r requirements.txt
 
 ### II. Testing the dogcat dataloader
-    1. Download the data [here](https://drive.google.com/drive/folders/1lVt1PJJ9F09MznNEZAG6yIeYBaKL1PIp?usp=sharing) and place the folder 'data' in project folder
-    2. Run: python shared/datasets/dogcat.py
+Download the data [here](https://drive.google.com/drive/folders/1lVt1PJJ9F09MznNEZAG6yIeYBaKL1PIp?usp=sharing) and place the 'data' folder in project folder
+
+    python shared/datasets/dogcat.py

@@ -4,25 +4,31 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
-
+import platform
 
 # All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
 # upside-down one.
 # Images will have different brightnesses, contrasts, etc.
 
 
-def load_data(scale_dim=512, n=None, user_os='mac'):
+def load_data_labels():
     home_dir = os.getcwd()
     # Read data labels Excel file, which includes image directory location and label (x, y) information
     label_dir = home_dir + '\\labels.xlsx'
-    if user_os == 'mac':
+    if platform.system() == 'Darwin':
         label_dir = label_dir.replace("\\", "/")
     # noinspection PyArgumentList
     labels = pd.read_excel(label_dir)
     data_labels = labels[['superior_patella_x', 'inferior_patella_x',
                           'tibial_plateau_x', 'superior_patella_y',
                           'inferior_patella_y', 'tibial_plateau_y']]
-    data_labels = data_labels.to_numpy()[:n]
+    data_labels = data_labels.to_numpy()
+    return data_labels, labels
+
+
+def load_data(scale_dim=512, n=None, user_os='mac'):
+    home_dir = os.getcwd()
+    data_labels, full_labels = load_data_labels()[:n]
 
     if n is None:
         n = len(data_labels)
@@ -31,8 +37,8 @@ def load_data(scale_dim=512, n=None, user_os='mac'):
         print("Processing image: ", i + 1, " / ", n)
 
         # load and store images in data array
-        image_path = home_dir + '\\Images\\' + labels.iloc[i]['lateral x-ray']
-        if user_os == 'mac':
+        image_path = home_dir + '\\Images\\' + full_labels.iloc[i]['lateral x-ray']
+        if platform.system() == 'Darwin':
             image_path = image_path.replace("\\", "/")
         ds = dcmread(image_path)
         image = ds.pixel_array  # pixel data is stored in 'pixel_array' element which is like a np array
@@ -45,6 +51,10 @@ def load_data(scale_dim=512, n=None, user_os='mac'):
             data_labels[i][:3] *= scale_dim / x_pix_dim
             data_labels[i][3:] *= scale_dim / y_pix_dim
 
+    x_pix_dim = [len(image[0]) for image in data]
+    y_pix_dim = [len(image) for image in data]
+    data_cache = [x_pix_dim, y_pix_dim]
+
     # scale images
     if scale_dim is not None:
         data = [cv2.resize(image, (scale_dim, scale_dim)) for image in data]
@@ -52,8 +62,9 @@ def load_data(scale_dim=512, n=None, user_os='mac'):
     # convert to np array
     data = np.array(data)
     data_labels = np.array(data_labels)
+    data_cache = np.array(data_cache)
 
-    return data, data_labels
+    return data, data_labels, data_cache
 
 
 def show_image(image, label=None):
@@ -71,7 +82,7 @@ def show_image(image, label=None):
     plt.show()
 
 
-def unscale(image, label):
+def unscale(image, label, data_cache):
     raise NotImplementedError
 
 
@@ -98,9 +109,11 @@ def load_pix_dim():
     return x_pix_dim, y_pix_dim
 
 
-data, data_labels = load_data(scale_dim=512, n=10)
+data, data_labels, data_cache = load_data(scale_dim=512, n=10)
 print('Shape of image array: ', data.shape)
 print('Shape of labels array: ', data_labels.shape)
 
 for i in range(len(data)):
     show_image(data[i], data_labels[i])
+
+

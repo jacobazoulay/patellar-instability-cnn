@@ -11,7 +11,7 @@ import glob
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from data_process import DataProcess, get_while_running, kill_data_processes
-from data_utils import load_img, show_img_gt, load_data_args
+from data_utils import load_img, show_img_gt
 
 
 EXTS = ['.png', '.jpeg', '.jpg']
@@ -30,6 +30,7 @@ class DogCatDataProcess(DataProcess):
         
         args.num_classes = 2
         args.labels = {'dog': 0, 'cat': 1}
+        args.idx2label = {0: 'dog', 1: 'cat'}
         data_paths = [f for f in glob.glob(args.DATA_PATH+"/*")]
 
         self.data_paths = data_paths

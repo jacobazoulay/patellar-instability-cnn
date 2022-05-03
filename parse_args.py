@@ -17,6 +17,7 @@ def parse_args():
     parser.add_argument('--dataset', default='PVG', help='Dataset')
     parser.add_argument('--epochs', default=300, type=int, help='number of epochs')
     parser.add_argument('--nworkers', default=4, type=int, help='number of workers')
+    parser.add_argument('--test_split', default='val', type=str, choices=['train', 'val'], help='data split to test on.')
 
     args = parser.parse_args()
 

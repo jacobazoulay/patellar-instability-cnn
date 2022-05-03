@@ -67,22 +67,27 @@ def main():
             loss_names, losses = train(args, epoch, train_data_queue, train_data_processes)
             ldict = {'epoch': epoch + 1}
             if (epoch+1) % args.test_nth_epoch == 0 or epoch+1==args.epochs:
-                loss_names, losses_val = test('train', args)
+                #test model on validation set (or training set if overfitting) and save losses
+                loss_names, losses_val = test(args.test_split, args)
                 for ix, loss in enumerate(loss_names):
                     print('-> Train {}: {}, \t Val {}: {}'.format(loss_names[ix], losses[ix], loss_names[ix], losses_val[ix]))
                     ldict[loss_names[ix] + '_train'] = losses[ix]
                     ldict[loss_names[ix] + '_val'] = losses_val[ix]
             else:
+                # just train, no testing
                 for ix, loss in enumerate(loss_names):
                     print('-> Train {}: {}'.format(loss_names[ix], losses[ix]))
                     ldict[loss_names[ix] + '_train'] = losses[ix]
             stats.append(ldict)
 
+            # save model
             if (epoch+1) % args.save_nth_epoch == 0 or epoch+1==args.epochs:
                 save_model(args, epoch)
-
+            
+            # evaluate 
             if (epoch+1) % args.test_nth_epoch == 0 and epoch+1 < args.epochs:
-                split = 'train'
+                #test model on validation set (or training set if overfitting) and save metrics
+                split = args.test_split
                 metrics(split, args, epoch)
                 with open(os.path.join(args.odir, 'trainlog.txt'), 'w') as outfile:
                     json.dump(stats, outfile)
@@ -96,11 +101,13 @@ def main():
     kill_data_processes(train_data_queue, train_data_processes)
 
     """
-    split = 'val'
+    #evaluate on test set
+    split = 'test'
     if args.eval:
         split = 'test'
     metrics(split, args, epoch)
     """
+    
 
 if __name__ == '__main__':
     main()

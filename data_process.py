@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import os
 import platform
+import albumentations as A
 
 # All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
 # upside-down one.
@@ -28,6 +29,7 @@ def load_data(scale_dim=512, n=None, crop=True, subtract_mean=False):
             image_path = image_path.replace("\\", "/")
         ds = dcmread(image_path)
         image = ds.pixel_array  # pixel data is stored in 'pixel_array' element which is like a np array
+        image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)  # normalize pixels range [0, 255]
         data.append(image)
 
     # store pixel dimension in cache for scaling back
@@ -48,7 +50,7 @@ def load_data(scale_dim=512, n=None, crop=True, subtract_mean=False):
         data = sub_mean(data)
 
     # convert to np array
-    data = np.array(data).astype('float64')
+    data = np.array(data)
     data_labels = np.array(data_labels)
     data_cache = np.array(data_cache)
 
@@ -128,18 +130,61 @@ def show_image(image, label=None):
     plt.show()
 
 
+def augment(data, data_labels, n=10):
+    transform = A.Compose([
+        A.RandomResizedCrop(width=512, height=512, scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0),
+        A.RandomBrightnessContrast(p=1),
+        A.Rotate(p=0),
+        A.InvertImg(p=0),
+        A.VerticalFlip(p=1.0),
+        A.HorizontalFlip(p=0)
+    ], keypoint_params=A.KeypointParams(format='xy'))
+
+    idxs = np.random.randint(0, len(data), size=n)
+
+    # reshape data_labels to tuples for transform operation
+    keypoints = list(zip(zip(data_labels[:, 0], data_labels[:, 3]),
+                         zip(data_labels[:, 1], data_labels[:, 4]),
+                         zip(data_labels[:, 2], data_labels[:, 5])))
+    trfm_images, trfm_keypoints = [],[]
+    for i in idxs:
+        transformed = transform(image=data[i], keypoints=keypoints[i])
+        transformed_image = transformed['image']
+        transformed_keypoints = transformed['keypoints']
+        # reshape keypoint tuples back to original data_label shape
+        transformed_keypoints = [transformed_keypoints[0][0], transformed_keypoints[1][0],
+                                 transformed_keypoints[2][0], transformed_keypoints[0][1],
+                                 transformed_keypoints[1][1], transformed_keypoints[2][1]]
+        trfm_images.append(transformed_image)
+        trfm_keypoints.append(transformed_keypoints)
+
+    return trfm_images, trfm_keypoints, idxs
+
+
 def unscale(image, label, data_cache):
     raise NotImplementedError
 
 
-# load data (images and labels) and crop, rescale, and normalize
-data, data_labels, data_cache = load_data(scale_dim=512, n=10, crop=True, subtract_mean=True)
+# load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
+data, data_labels, data_cache = load_data(scale_dim=512, n=3, crop=True, subtract_mean=False)
 print('Shape of image array: ', data.shape)
 print('Shape of labels array: ', data_labels.shape)
 
-# show all images in data
+
+# feed in originally loaded data into augment()
+data_aug, data_aug_labels, cache = augment(data, data_labels, n=5)
+
+
+# show all images in augmented data (first shows original, then augmented)
+for i in range(len(cache)):
+    show_image(data[cache[i]], data_labels[cache[i]])
+    show_image(data_aug[i], data_aug_labels[i])
+
+
+# show all images in data (does not include augmented data)
 for i in range(len(data)):
     show_image(data[i], data_labels[i])
+
 
 # show mean image
 mean_im = np.mean(data, axis=0)

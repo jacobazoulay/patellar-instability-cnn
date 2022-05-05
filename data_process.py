@@ -130,14 +130,14 @@ def show_image(image, label=None):
     plt.show()
 
 
-def augment(data, data_labels, n=10):
+def augment(data, data_labels, n=100):
     transform = A.Compose([
-        A.RandomResizedCrop(width=512, height=512, scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0),
-        A.RandomBrightnessContrast(p=1),
-        A.Rotate(p=0),
-        A.InvertImg(p=0),
-        A.VerticalFlip(p=1.0),
-        A.HorizontalFlip(p=0)
+        A.RandomResizedCrop(width=512, height=512, scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0.7),
+        A.RandomBrightnessContrast(p=0.9),
+        A.Rotate(p=0.2),
+        A.InvertImg(p=0.2),
+        A.VerticalFlip(p=0.3),
+        A.HorizontalFlip(p=0.3)
     ], keypoint_params=A.KeypointParams(format='xy'))
 
     idxs = np.random.randint(0, len(data), size=n)
@@ -158,6 +158,10 @@ def augment(data, data_labels, n=10):
         trfm_images.append(transformed_image)
         trfm_keypoints.append(transformed_keypoints)
 
+    # convert to np array
+    trfm_images = np.array(trfm_images)
+    trfm_keypoints = np.array(trfm_keypoints)
+
     return trfm_images, trfm_keypoints, idxs
 
 
@@ -165,27 +169,39 @@ def unscale(image, label, data_cache):
     raise NotImplementedError
 
 
+# **********************************************************
 # load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
-data, data_labels, data_cache = load_data(scale_dim=512, n=3, crop=True, subtract_mean=False)
-print('Shape of image array: ', data.shape)
-print('Shape of labels array: ', data_labels.shape)
-
+data, data_labels, data_cache = load_data(scale_dim=512, n=10, crop=True, subtract_mean=False)
+print('Shape of original image array: ', data.shape)
+print('Shape of original labels array: ', data_labels.shape)
 
 # feed in originally loaded data into augment()
 data_aug, data_aug_labels, cache = augment(data, data_labels, n=5)
 
+# combine original data and augmented data, and normalize
+data_final = np.append(data, data_aug, axis=0)
+data_final = sub_mean(data_final)
+data_labels_final = np.append(data_labels, data_aug_labels, axis=0)
+print('Shape of final image array: ', data_final.shape)
+print('Shape of final labels array: ', data_labels_final.shape)
+# **********************************************************
 
+
+"""
 # show all images in augmented data (first shows original, then augmented)
 for i in range(len(cache)):
     show_image(data[cache[i]], data_labels[cache[i]])
     show_image(data_aug[i], data_aug_labels[i])
 
-
 # show all images in data (does not include augmented data)
 for i in range(len(data)):
     show_image(data[i], data_labels[i])
 
+# show all images in data (does not include augmented data)
+for i in range(len(data_final)):
+    show_image(data_final[i], data_labels_final[i])
 
 # show mean image
 mean_im = np.mean(data, axis=0)
 show_image(mean_im)
+"""

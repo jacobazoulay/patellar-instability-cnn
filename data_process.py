@@ -108,7 +108,8 @@ def rescale_images(data, data_labels, scale_dim):
 def sub_mean(data):
     data = np.array(data).astype('float64')
     mean_im = np.mean(data, axis=0)
-    data -= mean_im
+    std_im = np.std(data, axis=0)
+    data = (data - mean_im) / std_im
     return data
 
 
@@ -129,6 +130,7 @@ def show_image(image, label=None):
 
 def unscale(image, label, data_cache):
     raise NotImplementedError
+
 
 # load data (images and labels) and crop, rescale, and normalize
 data, data_labels, data_cache = load_data(scale_dim=512, n=10, crop=True, subtract_mean=True)

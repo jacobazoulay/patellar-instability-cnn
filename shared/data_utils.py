@@ -10,9 +10,9 @@ from PIL import Image
 import io
 
 
-def load_img(args, path, method=1):
+def load_img(args, path, method=0):
     img = cv2.imread(path, method)
-    img = cv2.resize(img, (64,64))
+    #img = cv2.resize(img, (512,512))
     if method == 1:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img

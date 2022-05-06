@@ -91,3 +91,37 @@ def save_prediction(args, title, data, bid, img_id, epoch):
         os.makedirs(plot_path)
     fig.savefig(os.path.join(plot_path, title[0].split('/')[-1].replace('.png', str(img_id) + '.png')), facecolor=fig.get_facecolor())
     plt.close()
+
+
+def save_cdi_imgs(data, labels, fnames, split):
+    home_dir = os.getcwd()
+    outdir = os.path.join(home_dir, "data/CDI", split)
+    os.makedirs(outdir, exist_ok=True)
+
+    for i in range(len(data)):
+        outfile = os.path.join(outdir, fnames[i] + ".png")
+        print("saving %s" % (fnames[i]))
+        cv2.imwrite(outfile, data[i])
+
+
+def save_cdi_labels(labels, fnames):
+    home_dir = os.getcwd()
+    outdir = os.path.join(home_dir, "data/CDI")
+    os.makedirs(outdir, exist_ok=True)
+    outfile = os.path.join(outdir, "labels.json")
+    out = {}
+
+    for i in range(len(labels)):
+        out[fnames[i]] = labels[i]
+    
+    with open(outfile, 'w') as f:
+        json.dump(out, f)
+    
+if __name__=="__main__":
+    dat = np.zeros((2, 32, 32, 3))
+    labels = np.zeros((2, 6)).tolist()
+    fnames = ["f1", "f2"]
+    #test for saving labels
+    save_cdi_imgs(dat, labels, fnames, "train")
+    save_cdi_labels(labels, fnames)
+

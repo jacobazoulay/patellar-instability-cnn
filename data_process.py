@@ -6,11 +6,65 @@ import cv2
 import os
 import platform
 import albumentations as A
+import random
 
 # All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
 # upside-down one.
 # Images will have different brightnesses, contrasts, etc.
 
+def train_val_test_split(data, data_labels, data_cache):
+    data_labels, full_labels = load_data_labels()   # full_labels includes image directory information | data labels is array of 6 output prediction coordinates
+    
+    n = len(data) # number of images total
+    data_labels = data_labels[:n]
+
+    trainInd, valInd, testInd = [], [], []
+
+    trainingN, valN, testN = int(n * 0.6), int(n * 0.2), int(n * 0.2)
+
+    random.seed(1) #initialize random seed to generate repeatable results
+    processedSet = set()
+
+    # debugging sets (can be removed)
+    trainSet, valSet, testSet = set(), set(), set()
+
+    for i in range(n):
+        ranNum = random.random() # initialize random number
+        imgID = full_labels.iloc[i]['lateral x-ray'][0:12] # unique image ID (i.e. JUPITERW001R)
+
+        if imgID not in processedSet:
+            processedSet.add(imgID)
+
+            if ranNum < 0.34 and len(testInd) < testN: # add to test set
+                testInd.append(i)
+                testSet.add(imgID)
+                
+                for j in range(i + 1, n): # find all other images with same ID
+                    nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
+                    if nextImgID == imgID:
+                        testInd.append(j)
+            elif ranNum < 0.68 and len(valInd) < valN: # add to val set
+                valInd.append(i)
+                valSet.add(imgID)
+                
+                for j in range(i + 1, n): # find all other images with same ID
+                    nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
+                    if nextImgID == imgID:
+                        valInd.append(j)
+            else: # add to train set
+                trainInd.append(i)
+                trainSet.add(imgID)
+                
+                for j in range(i + 1, n): # find all other images with same ID
+                    nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
+                    if nextImgID == imgID:
+                        trainInd.append(j)
+    
+    trainData, train_data_labels, train_data_cache  = data[trainInd, :, :], data_labels[trainInd, :], data_cache[:, trainInd]
+    valData, val_data_labels, val_data_cache  = data[valInd, :, :], data_labels[valInd, :], data_cache[:, valInd]
+    testData, test_data_labels, test_data_cache  = data[testInd, :, :], data_labels[testInd, :], data_cache[:, testInd]
+
+    return trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache, testData, test_data_labels, test_data_cache
 
 def load_data(scale_dim=512, n=None, crop=True, subtract_mean=False):
     home_dir = os.getcwd()
@@ -174,6 +228,9 @@ def unscale(image, label, data_cache):
 data, data_labels, data_cache = load_data(scale_dim=512, n=10, crop=True, subtract_mean=False)
 print('Shape of original image array: ', data.shape)
 print('Shape of original labels array: ', data_labels.shape)
+
+trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache \
+    , testData, test_data_labels, test_data_cache = train_val_test_split(data, data_labels, data_cache)
 
 # feed in originally loaded data into augment()
 data_aug, data_aug_labels, cache = augment(data, data_labels, n=5)

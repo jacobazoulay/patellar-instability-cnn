@@ -5,9 +5,8 @@ import math
 import torch
 import _init_paths
 from parse_args import parse_args
-from AlexNet import *
-from Baseline import *
-from shared.data_process import kill_data_processes
+from CDINet import *
+from shared.dataprocess import kill_data_processes
 from train_utils import model_at, parse_experiment, metrics, train, test, \
    data_setup, set_seed, create_optimizer, check_overwrite, resume
 
@@ -85,12 +84,14 @@ def main():
                 save_model(args, epoch)
             
             # evaluate 
+            """
             if (epoch+1) % args.test_nth_epoch == 0 and epoch+1 < args.epochs:
                 #test model on validation set (or training set if overfitting) and save metrics
                 split = args.test_split
                 metrics(split, args, epoch)
                 with open(os.path.join(args.odir, 'trainlog.txt'), 'w') as outfile:
                     json.dump(stats, outfile)
+            """
 
             if math.isnan(losses[0]): break
 
@@ -100,13 +101,12 @@ def main():
 
     kill_data_processes(train_data_queue, train_data_processes)
 
-    """
+    
     #evaluate on test set
-    split = 'test'
+    split = args.test_split
     if args.eval:
         split = 'test'
     metrics(split, args, epoch)
-    """
     
 
 if __name__ == '__main__':

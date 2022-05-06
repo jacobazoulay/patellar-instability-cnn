@@ -17,10 +17,11 @@ import torch
 import torch.optim as optim
 from multiprocessing import Queue
 from tqdm import tqdm
-from shared.data_process import kill_data_processes
-from shared.datasets.dogcat import DogCatDataProcess
+from shared.dataprocess import kill_data_processes
+from shared.datasets.cdi import CDIDataProcess
 from data_utils import save_prediction
 from loss_utils import getLabelCount, getmeaniou, getconfmatrix
+from data_process import show_image
 from AlexNet import *
 import json
 
@@ -38,7 +39,7 @@ def check_overwrite(fname):
 
 
 def data_setup(args, phase, num_workers, repeat):
-    DataProcessClass = DogCatDataProcess
+    DataProcessClass = CDIDataProcess
     # Initialize data processes
     data_queue = Queue(4 * num_workers)
     data_processes = []
@@ -149,7 +150,7 @@ def train_or_test(args, data_queue, data_processes, training):
     for bidx in tqdm(range(Nb)):
         item = data_queue.get()
         imgs, gts, meta = item
-        N, W, H, C = imgs.shape
+        N, W, H = imgs.shape
 
         t_loader = 1000*(time.time()-t0)
         t0 = time.time()
@@ -238,15 +239,18 @@ def metrics(split, args, epoch=0):
         for bidx in tqdm(range(Nb)):
             item = data_queue.get()
             imgs, gts, meta = item
-            N, W, H, C = imgs.shape
+            N, W, H = imgs.shape
             lnm, losses, outputs = args.step(args, item)
-            acc.append(np.mean(torch.argmax(outputs[0],1).cpu().numpy()==gts)*100)
-            pred = np.asarray(torch.argmax(outputs[0],1).cpu().numpy())
+            acc.append(losses[1])
+            pred = outputs[0].cpu().numpy()
             preds.extend(pred)
             truths.extend(gts)
+            
+            """
             if count < 5:
                 view_predictions(args, imgs, gts, pred, meta, bidx, epoch)
                 count+=1
+            """
 
         preds = np.asarray(preds)
         truths = np.asarray(truths)
@@ -260,22 +264,23 @@ def metrics(split, args, epoch=0):
         print("Saving results to %s ..." % (outfile))
         with open(outfile, 'w') as f:
             f.write('oacc: %.5f\n' % (oacc))
-            for i in range(0,args.num_classes):
-                pos = truths==i
-                acc_i = np.mean(truths[pos] == preds[pos]) * 100
-                f.write('acc_%d: %.5f\n' % (i, acc_i))
 
 
 def view_predictions(args, imgs, gts, preds, meta, bid, epoch):
     count = 0
     for j in range(len(preds)):
-        (fname, category, label_id) = meta[j]
-        print("loading: %s" % (fname))
-        pred = args.idx2label[preds[j]]
-        data = [imgs[j], imgs[j]]
-        title = [category, pred]
-        save_prediction(args, title, data, bid, j, epoch)
-        count+=1
+        pred_keypts = preds[j]
+        imgname = meta[j][0]
+        print("loading: %s" % (imgname))
+        #pred = args.idx2label[preds[j]]
+        #data = [imgs[j], imgs[j]]
+        show_image(imgs[j], pred_keypts)
+
+        #title = ["ground-truth", "predicted"]
+        #show_image()
+
+        #save_prediction(args, title, data, bid, j, epoch)
+        #count+=1
         if count > 0:
             break
     return

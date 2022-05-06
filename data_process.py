@@ -13,7 +13,7 @@ import random
 # Images will have different brightnesses, contrasts, etc.
 
 def train_val_test_split(data, data_labels, data_cache):
-    data_labels, full_labels = load_data_labels()   # full_labels includes image directory information | data labels is array of 6 output prediction coordinates
+    _, full_labels = load_data_labels()   # full_labels includes image directory information | data labels is array of 6 output prediction coordinates
     
     n = len(data) # number of images total
     data_labels = data_labels[:n]
@@ -59,12 +59,17 @@ def train_val_test_split(data, data_labels, data_cache):
                     nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
                     if nextImgID == imgID:
                         trainInd.append(j)
-    
-    trainData, train_data_labels, train_data_cache  = data[trainInd, :, :], data_labels[trainInd, :], data_cache[:, trainInd]
-    valData, val_data_labels, val_data_cache  = data[valInd, :, :], data_labels[valInd, :], data_cache[:, valInd]
-    testData, test_data_labels, test_data_cache  = data[testInd, :, :], data_labels[testInd, :], data_cache[:, testInd]
+
+    train_img_name = [full_labels.iloc[i]['lateral x-ray'] for i in trainInd]
+    val_img_name = [full_labels.iloc[i]['lateral x-ray'] for i in valInd]
+    test_img_name = [full_labels.iloc[i]['lateral x-ray'] for i in testInd]
+
+    trainData, train_data_labels, train_data_cache  = data[trainInd, :, :], data_labels[trainInd, :], (data_cache[:, trainInd], train_img_name)
+    valData, val_data_labels, val_data_cache  = data[valInd, :, :], data_labels[valInd, :], (data_cache[:, valInd], val_img_name)
+    testData, test_data_labels, test_data_cache  = data[testInd, :, :], data_labels[testInd, :], (data_cache[:, testInd], test_img_name)
 
     return trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache, testData, test_data_labels, test_data_cache
+
 
 def load_data(scale_dim=512, n=None, crop=True, subtract_mean=False):
     home_dir = os.getcwd()
@@ -184,7 +189,7 @@ def show_image(image, label=None):
     plt.show()
 
 
-def augment(data, data_labels, n=100):
+def augment(data, data_labels, data_cache, n=100):
     transform = A.Compose([
         A.RandomResizedCrop(width=512, height=512, scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0.7),
         A.RandomBrightnessContrast(p=0.9),
@@ -200,7 +205,8 @@ def augment(data, data_labels, n=100):
     keypoints = list(zip(zip(data_labels[:, 0], data_labels[:, 3]),
                          zip(data_labels[:, 1], data_labels[:, 4]),
                          zip(data_labels[:, 2], data_labels[:, 5])))
-    trfm_images, trfm_keypoints = [],[]
+    trfm_images, trfm_keypoints, trfm_name = [],[],[]
+    count = 0
     for i in idxs:
         transformed = transform(image=data[i], keypoints=keypoints[i])
         transformed_image = transformed['image']
@@ -209,14 +215,17 @@ def augment(data, data_labels, n=100):
         transformed_keypoints = [transformed_keypoints[0][0], transformed_keypoints[1][0],
                                  transformed_keypoints[2][0], transformed_keypoints[0][1],
                                  transformed_keypoints[1][1], transformed_keypoints[2][1]]
+        transformed_name = data_cache[i][:-4] + "_aug" + str((idxs[:count + 1] == i).sum()) + ".dcm"
+        trfm_name.append(transformed_name)
         trfm_images.append(transformed_image)
         trfm_keypoints.append(transformed_keypoints)
+        count += 1
 
     # convert to np array
     trfm_images = np.array(trfm_images)
     trfm_keypoints = np.array(trfm_keypoints)
 
-    return trfm_images, trfm_keypoints, idxs
+    return trfm_images, trfm_keypoints, (idxs, trfm_name)
 
 
 def unscale(image, label, data_cache):
@@ -225,22 +234,40 @@ def unscale(image, label, data_cache):
 
 # **********************************************************
 # load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
-data, data_labels, data_cache = load_data(scale_dim=512, n=10, crop=True, subtract_mean=False)
+data, data_labels, data_cache = load_data(scale_dim=512, n=5, crop=True, subtract_mean=False)
 print('Shape of original image array: ', data.shape)
 print('Shape of original labels array: ', data_labels.shape)
 
 trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache \
     , testData, test_data_labels, test_data_cache = train_val_test_split(data, data_labels, data_cache)
 
-# feed in originally loaded data into augment()
-data_aug, data_aug_labels, cache = augment(data, data_labels, n=5)
+test_data_names = test_data_cache[1]
+val_data_names = val_data_cache[1]
 
+# feed in originally loaded data into augment()
+train_aug, train_aug_labels, train_aug_cache = augment(trainData, train_data_labels, train_data_cache[1], n=5)
 # combine original data and augmented data, and normalize
-data_final = np.append(data, data_aug, axis=0)
-data_final = sub_mean(data_final)
-data_labels_final = np.append(data_labels, data_aug_labels, axis=0)
-print('Shape of final image array: ', data_final.shape)
-print('Shape of final labels array: ', data_labels_final.shape)
+trainData = np.append(trainData, train_aug, axis=0)
+train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
+train_data_names = train_data_cache[1] + train_aug_cache[1]
+
+dict = {}
+for i in range(len(train_data_names)):
+    dict[train_data_names[i]] = train_data_labels[i]
+
+for i in range(len(test_data_names)):
+    dict[test_data_names[i]] = test_data_labels[i]
+
+for i in range(len(val_data_names)):
+    dict[val_data_names[i]] = val_data_labels[i]
+
+final_data = (trainData, train_data_labels, train_data_names,
+              valData, val_data_labels, val_data_names,
+              testData, test_data_labels, test_data_names)
+
+# print('Shape of final image array: ', trainData.shape)
+# print('Shape of final labels array: ', train_data_labels.shape)
+# print('Shape of final name array: ', len(train_data_names))
 # **********************************************************
 
 

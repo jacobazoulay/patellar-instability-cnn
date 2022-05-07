@@ -12,7 +12,7 @@ class KeypointModel(nn.Module):
         self.conv1 = nn.Conv2d(1, 6, kernel_size=5) # takes in 1 input image channel
         self.conv2 = nn.Conv2d(6, 16, kernel_size=3)
 
-        self.fc1 = nn.Linear(16 * 126 * 126, 120)
+        self.fc1 = nn.Linear(16 * 30 * 30, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 6) #output is # of coordinates (3 keypoints)
 

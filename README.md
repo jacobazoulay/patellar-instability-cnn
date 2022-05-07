@@ -6,8 +6,11 @@ Authors:
 
 ## A. Running the code
 
+## Data Preprocessing
+    python data_process.py
+
 ## Clone Repository
-git clone git@github.com:jacobazoulay/CS231N_Project.git
+    git clone git@github.com:jacobazoulay/CS231N_Project.git
 
 ### Create Virtual Environment
     $PYTHON_BIN = path/to/python/bin
@@ -23,4 +26,4 @@ git clone git@github.com:jacobazoulay/CS231N_Project.git
     3. Results are saved in './results' directory
     
 ### Plotting loss after training
-python tools/plot_loss.py path/to/results/trainlog.txt
+    python tools/plot_loss.py path/to/results/trainlog.txt

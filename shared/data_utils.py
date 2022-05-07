@@ -93,11 +93,11 @@ def save_prediction(args, title, data, bid, img_id, epoch):
     plt.close()
 
 
-def save_cdi_imgs(data, labels, fnames, split):
+def save_cdi_imgs(data, fnames, split):
     home_dir = os.getcwd()
     outdir = os.path.join(home_dir, "data/CDI", split)
     os.makedirs(outdir, exist_ok=True)
-
+    print("saving Images...")
     for i in range(len(data)):
         outfile = os.path.join(outdir, fnames[i] + ".png")
         print("saving %s" % (fnames[i]))
@@ -110,7 +110,9 @@ def save_cdi_labels(labels, fnames):
     os.makedirs(outdir, exist_ok=True)
     outfile = os.path.join(outdir, "labels.json")
     out = {}
-
+    if os.path.exists(outfile):
+        out = json.load(open(outfile))
+    print("saving Labels...")
     for i in range(len(labels)):
         out[fnames[i]] = labels[i]
     

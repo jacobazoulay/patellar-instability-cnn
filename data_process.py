@@ -7,6 +7,7 @@ import os
 import platform
 import albumentations as A
 import random
+from shared.data_utils import save_cdi_imgs, save_cdi_labels
 
 # All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
 # upside-down one.
@@ -231,44 +232,56 @@ def augment(data, data_labels, data_cache, n=100):
 def unscale(image, label, data_cache):
     raise NotImplementedError
 
+def main():
+    # **********************************************************
+    # load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
+    data, data_labels, data_cache = load_data(scale_dim=512, n=5, crop=True, subtract_mean=False)
+    print('Shape of original image array: ', data.shape)
+    print('Shape of original labels array: ', data_labels.shape)
 
-# **********************************************************
-# load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
-data, data_labels, data_cache = load_data(scale_dim=512, n=5, crop=True, subtract_mean=False)
-print('Shape of original image array: ', data.shape)
-print('Shape of original labels array: ', data_labels.shape)
+    trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache \
+        , testData, test_data_labels, test_data_cache = train_val_test_split(data, data_labels, data_cache)
 
-trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache \
-    , testData, test_data_labels, test_data_cache = train_val_test_split(data, data_labels, data_cache)
+    test_data_names = test_data_cache[1]
+    val_data_names = val_data_cache[1]
 
-test_data_names = test_data_cache[1]
-val_data_names = val_data_cache[1]
+    # feed in originally loaded data into augment()
+    train_aug, train_aug_labels, train_aug_cache = augment(trainData, train_data_labels, train_data_cache[1], n=5)
+    # combine original data and augmented data, and normalize
+    trainData = np.append(trainData, train_aug, axis=0)
+    train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
+    train_data_names = train_data_cache[1] + train_aug_cache[1]
 
-# feed in originally loaded data into augment()
-train_aug, train_aug_labels, train_aug_cache = augment(trainData, train_data_labels, train_data_cache[1], n=5)
-# combine original data and augmented data, and normalize
-trainData = np.append(trainData, train_aug, axis=0)
-train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
-train_data_names = train_data_cache[1] + train_aug_cache[1]
+    dict = {}
+    for i in range(len(train_data_names)):
+        dict[train_data_names[i]] = train_data_labels[i]
 
-dict = {}
-for i in range(len(train_data_names)):
-    dict[train_data_names[i]] = train_data_labels[i]
+    for i in range(len(test_data_names)):
+        dict[test_data_names[i]] = test_data_labels[i]
 
-for i in range(len(test_data_names)):
-    dict[test_data_names[i]] = test_data_labels[i]
+    for i in range(len(val_data_names)):
+        dict[val_data_names[i]] = val_data_labels[i]
 
-for i in range(len(val_data_names)):
-    dict[val_data_names[i]] = val_data_labels[i]
+    final_data = (trainData, train_data_labels, train_data_names,
+                valData, val_data_labels, val_data_names,
+                testData, test_data_labels, test_data_names)
+    
+    save_cdi_imgs(trainData, train_data_names, "train")
+    save_cdi_imgs(valData, val_data_names, "val")
+    save_cdi_imgs(testData, test_data_names, "test")
 
-final_data = (trainData, train_data_labels, train_data_names,
-              valData, val_data_labels, val_data_names,
-              testData, test_data_labels, test_data_names)
+    save_cdi_labels(train_data_labels.tolist(), train_data_names)
+    save_cdi_labels(val_data_labels.tolist(), val_data_names)
+    save_cdi_labels(test_data_labels.tolist(), test_data_names)
+    
 
-# print('Shape of final image array: ', trainData.shape)
-# print('Shape of final labels array: ', train_data_labels.shape)
-# print('Shape of final name array: ', len(train_data_names))
-# **********************************************************
+    # print('Shape of final image array: ', trainData.shape)
+    # print('Shape of final labels array: ', train_data_labels.shape)
+    # print('Shape of final name array: ', len(train_data_names))
+    # **********************************************************
+
+if __name__=="__main__":
+    main()
 
 
 """

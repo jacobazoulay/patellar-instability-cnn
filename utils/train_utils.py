@@ -22,7 +22,7 @@ from shared.datasets.cdi import CDIDataProcess
 from data_utils import save_prediction
 from loss_utils import getLabelCount, getmeaniou, getconfmatrix
 from data_process import show_image
-from AlexNet import *
+from CDINet import *
 import json
 
 

@@ -43,7 +43,7 @@ class CDIDataProcess(DataProcess):
         args.label_names = label_names
         
         data_paths = [f for f in glob.glob(args.DATA_PATH+"/*")]
-        labels_json_pth = "data/%s/%s" % (args.dataset, "labels.json")
+        labels_json_pth = "data/%s/%s" % ("CDI", "labels.json")
         labels_json = json.load(open(labels_json_pth))
 
         self.data_paths = data_paths

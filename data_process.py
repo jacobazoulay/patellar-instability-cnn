@@ -145,12 +145,10 @@ def crop_images(data, data_labels):
             data_labels[i][3:] -= start
 
         else:
-            start = (y_dim - x_dim) // 2
-            end = (y_dim + x_dim) // 2
+            start = (x_dim - y_dim) // 2
+            end = (x_dim + y_dim) // 2
             im_cropped = data[i][:, start:end]
-
             data_labels[i][:3] -= start
-
         cropped.append(im_cropped)
     return cropped, data_labels
 
@@ -167,12 +165,17 @@ def rescale_images(data, data_labels, scale_dim):
     return scaled, data_labels
 
 
-def sub_mean(data):
+def sub_mean(data, *argv):
     data = np.array(data).astype('float64')
     mean_im = np.mean(data, axis=0)
     std_im = np.std(data, axis=0)
     data = (data - mean_im) / std_im
-    return data
+    out = [data]
+    for arg in argv:
+        norm = (arg - mean_im) / std_im
+        out.append(norm)
+    out = tuple(out)
+    return out
 
 
 def show_image(image, label=None):
@@ -192,7 +195,7 @@ def show_image(image, label=None):
 
 def augment(data, data_labels, data_cache, n=100):
     transform = A.Compose([
-        A.RandomResizedCrop(width=512, height=512, scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0.7),
+        A.RandomResizedCrop(width=data.shape[1], height=data.shape[2], scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0.7),
         A.RandomBrightnessContrast(p=0.9),
         A.Rotate(p=0.2),
         A.InvertImg(p=0.2),
@@ -232,25 +235,31 @@ def augment(data, data_labels, data_cache, n=100):
 def unscale(image, label, data_cache):
     raise NotImplementedError
 
+
+
+
 def main():
     # **********************************************************
     # load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
-    data, data_labels, data_cache = load_data(scale_dim=512, n=5, crop=True, subtract_mean=False)
+    data, data_labels, data_cache = load_data(scale_dim=128, n=None, crop=True, subtract_mean=False)
     print('Shape of original image array: ', data.shape)
     print('Shape of original labels array: ', data_labels.shape)
 
     trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache \
         , testData, test_data_labels, test_data_cache = train_val_test_split(data, data_labels, data_cache)
 
+    train_data_names = train_data_cache[1]
     test_data_names = test_data_cache[1]
     val_data_names = val_data_cache[1]
 
     # feed in originally loaded data into augment()
-    train_aug, train_aug_labels, train_aug_cache = augment(trainData, train_data_labels, train_data_cache[1], n=5)
+    # train_aug, train_aug_labels, train_aug_cache = augment(trainData, train_data_labels, train_data_cache[1], n=200)
     # combine original data and augmented data, and normalize
-    trainData = np.append(trainData, train_aug, axis=0)
-    train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
-    train_data_names = train_data_cache[1] + train_aug_cache[1]
+    # trainData = np.append(trainData, train_aug, axis=0)
+    # train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
+    # train_data_names = train_data_cache[1] + train_aug_cache[1]
+
+    trainData, valData, testData = sub_mean(trainData, valData, testData)
 
     dict = {}
     for i in range(len(train_data_names)):
@@ -274,7 +283,6 @@ def main():
     save_cdi_labels(val_data_labels.tolist(), val_data_names)
     save_cdi_labels(test_data_labels.tolist(), test_data_names)
     
-
     # print('Shape of final image array: ', trainData.shape)
     # print('Shape of final labels array: ', train_data_labels.shape)
     # print('Shape of final name array: ', len(train_data_names))

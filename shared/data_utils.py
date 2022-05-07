@@ -71,25 +71,30 @@ def show_img_gt(args, title, data):
     fig.patch.set_alpha(1)
     plt.show(block=True)
 
+def plot_labels(label, c):
+    plt.scatter(label[0], label[3], color=c)  # superior patella loc in blue
+    plt.scatter(label[1], label[4], color=c)  # inferior patella loc in orange
+    plt.scatter(label[2], label[5], color=c)  # tibial_plateau loc in green
 
-def save_prediction(args, title, data, bid, img_id, epoch):
+def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
     fig = plt.figure()
-    n_images = len(data)
-    cols = 1
-    for i in range(n_images):
-        a = fig.add_subplot(cols, int(np.ceil(n_images/float(cols))), i + 1)
-        plot = plt.imshow(data[i])
-        plot.axes.get_xaxis().set_visible(False)
-        plot.axes.get_yaxis().set_visible(False)
-        a.set_title(title[i])
-    fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
+    plot = plt.imshow(img, cmap='gray')
+    
+    plot_labels(gt_kpts, 'green')
+    plot_labels(pred_kpts*255.0, 'red')
+
+    plot.axes.get_xaxis().set_visible(False)
+    plot.axes.get_yaxis().set_visible(False)
+    plt.title(imgname)
+    fig.set_size_inches(np.array(fig.get_size_inches()))
     fig.tight_layout()
     fig.patch.set_alpha(1)
-    #plt.show(block=False)
+    plt.show(block=False)
+    
     plot_path = os.path.join(args.odir, 'images', str(epoch), str(bid))
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
-    fig.savefig(os.path.join(plot_path, title[0].split('/')[-1].replace('.png', str(img_id) + '.png')), facecolor=fig.get_facecolor())
+    fig.savefig(os.path.join(plot_path, imgname + str(img_id) + '.png'), facecolor=fig.get_facecolor())
     plt.close()
 
 

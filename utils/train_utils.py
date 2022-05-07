@@ -247,11 +247,10 @@ def metrics(split, args, epoch=0):
             preds.extend(pred)
             truths.extend(gts)
             
-            """
+            #save one image from each batch, and at most 5 images for viewing sample predictions
             if count < 5:
                 view_predictions(args, imgs, gts, pred, meta, bidx, epoch)
                 count+=1
-            """
 
         preds = np.asarray(preds)
         truths = np.asarray(truths)
@@ -269,19 +268,15 @@ def metrics(split, args, epoch=0):
 
 def view_predictions(args, imgs, gts, preds, meta, bid, epoch):
     count = 0
+    max_save = 1 # number of images to save per batch
+    print("Plotting predictions")
     for j in range(len(preds)):
-        pred_keypts = preds[j]
-        imgname = meta[j][0]
-        print("loading: %s" % (imgname))
-        #pred = args.idx2label[preds[j]]
-        #data = [imgs[j], imgs[j]]
-        show_image(imgs[j], pred_keypts)
-
-        #title = ["ground-truth", "predicted"]
-        #show_image()
-
-        #save_prediction(args, title, data, bid, j, epoch)
-        #count+=1
-        if count > 0:
+        pred_kpts = preds[j]
+        gt_kpts = gts[j]
+        imgname = meta[j][1]
+        img = imgs[j]
+        save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, j, epoch)
+        count+=1
+        if count >= max_save:
             break
     return

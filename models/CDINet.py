@@ -56,13 +56,13 @@ def CDINet_step(args, item):
         targets = Variable(torch.from_numpy(gt), requires_grad=False).float()
         inp = Variable(torch.from_numpy(imgs), requires_grad=False).float()
 
-    targets = targets.contiguous() / 255.0 #normalize from 0-255 to 0-1
-    inp = inp.transpose(3,2).transpose(2,1)/255.0
-    loss, pred = args.model.forward(inp,targets)
+    targets = targets.contiguous() 
+    inp = inp.transpose(3,2).transpose(2,1)
+    loss, pred = args.model.forward(inp/255.0, targets/255.0) #normalize from 0-255 to 0-1
     loss = loss.mean()
 
     #compute metrics
-    sqrt_dist = torch.sum((targets - pred)**2, axis=0)
+    sqrt_dist = torch.sum((targets - pred*255.0)**2, axis=0) #unnormalize pred from 0-1 back to 0-255
     avg_keypoint_dist = torch.sqrt(torch.mean(sqrt_dist))
 
     losses = [loss, avg_keypoint_dist]

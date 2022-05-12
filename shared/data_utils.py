@@ -71,10 +71,12 @@ def show_img_gt(args, title, data):
     fig.patch.set_alpha(1)
     plt.show(block=True)
 
+
 def plot_labels(label, c):
     plt.scatter(label[0], label[3], color=c)  # superior patella loc in blue
     plt.scatter(label[1], label[4], color=c)  # inferior patella loc in orange
     plt.scatter(label[2], label[5], color=c)  # tibial_plateau loc in green
+
 
 def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
     fig = plt.figure()
@@ -105,7 +107,7 @@ def save_cdi_imgs(data, fnames, split):
     print("saving Images...")
     for i in range(len(data)):
         outfile = os.path.join(outdir, fnames[i] + ".png")
-        print("saving %s" % (fnames[i]))
+        # print("saving %s" % (fnames[i]))
         cv2.imwrite(outfile, data[i])
 
 
@@ -123,8 +125,9 @@ def save_cdi_labels(labels, fnames):
     
     with open(outfile, 'w') as f:
         json.dump(out, f)
-    
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     dat = np.zeros((2, 32, 32, 3))
     labels = np.zeros((2, 6)).tolist()
     fnames = ["f1", "f2"]

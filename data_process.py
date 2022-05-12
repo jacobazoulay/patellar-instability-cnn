@@ -9,72 +9,18 @@ import albumentations as A
 import random
 from shared.data_utils import save_cdi_imgs, save_cdi_labels
 
-# All x-rays should look like this, though perhaps flipped/rotated.You might expect a sideways x-ray but not an
-# upside-down one.
-# Images will have different brightnesses, contrasts, etc.
 
-def train_val_test_split(data, data_labels, data_cache):
-    _, full_labels = load_data_labels()   # full_labels includes image directory information | data labels is array of 6 output prediction coordinates
-    
-    n = len(data) # number of images total
-    data_labels = data_labels[:n]
-
-    trainInd, valInd, testInd = [], [], []
-
-    trainingN, valN, testN = int(n * 0.6), int(n * 0.2), int(n * 0.2)
-
-    random.seed(1) #initialize random seed to generate repeatable results
-    processedSet = set()
-
-    # debugging sets (can be removed)
-    trainSet, valSet, testSet = set(), set(), set()
-
-    for i in range(n):
-        ranNum = random.random() # initialize random number
-        imgID = full_labels.iloc[i]['lateral x-ray'][0:12] # unique image ID (i.e. JUPITERW001R)
-
-        if imgID not in processedSet:
-            processedSet.add(imgID)
-
-            if ranNum < 0.34 and len(testInd) < testN: # add to test set
-                testInd.append(i)
-                testSet.add(imgID)
-                
-                for j in range(i + 1, n): # find all other images with same ID
-                    nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
-                    if nextImgID == imgID:
-                        testInd.append(j)
-            elif ranNum < 0.68 and len(valInd) < valN: # add to val set
-                valInd.append(i)
-                valSet.add(imgID)
-                
-                for j in range(i + 1, n): # find all other images with same ID
-                    nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
-                    if nextImgID == imgID:
-                        valInd.append(j)
-            else: # add to train set
-                trainInd.append(i)
-                trainSet.add(imgID)
-                
-                for j in range(i + 1, n): # find all other images with same ID
-                    nextImgID = full_labels.iloc[j]['lateral x-ray'][0:12]
-                    if nextImgID == imgID:
-                        trainInd.append(j)
-
-    train_img_name = [full_labels.iloc[i]['lateral x-ray'] for i in trainInd]
-    val_img_name = [full_labels.iloc[i]['lateral x-ray'] for i in valInd]
-    test_img_name = [full_labels.iloc[i]['lateral x-ray'] for i in testInd]
-
-    trainData, train_data_labels, train_data_cache  = data[trainInd, :, :], data_labels[trainInd, :], (data_cache[:, trainInd], train_img_name)
-    valData, val_data_labels, val_data_cache  = data[valInd, :, :], data_labels[valInd, :], (data_cache[:, valInd], val_img_name)
-    testData, test_data_labels, test_data_cache  = data[testInd, :, :], data_labels[testInd, :], (data_cache[:, testInd], test_img_name)
-
-    return trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache, testData, test_data_labels, test_data_cache
-
-
-def load_data(scale_dim=512, n=None, crop=True, subtract_mean=False):
+def load_data(n=None):
+    """
+    Reads and loads raw image data using labels Excel
+    :param
+        n: number of images to load. If None then all images will load
+    :return
+        data [list]: 2-D images with pixel values scaled from [0-255]
+        data_labels [np array]: corresponding data labels (x1, x2, x3, y1, y2, y3)
+    """
     home_dir = os.getcwd()
-    data_labels, full_labels = load_data_labels()   # full_labels includes image directory information
+    data_labels, full_labels = load_data_labels()  # full_labels includes image directory information
     data_labels = data_labels[:n]
 
     if n is None:
@@ -92,90 +38,148 @@ def load_data(scale_dim=512, n=None, crop=True, subtract_mean=False):
         image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)  # normalize pixels range [0, 255]
         data.append(image)
 
-    # store pixel dimension in cache for scaling back
-    x_pix_dim = [len(image[0]) for image in data]
-    y_pix_dim = [len(image) for image in data]
-    data_cache = [x_pix_dim, y_pix_dim]
-
-    # crop images
-    if crop:
-        data, data_labels = crop_images(data, data_labels)
-
-    # scale images
-    if scale_dim is not None:
-        data, data_labels = rescale_images(data, data_labels, scale_dim)
-
-    # subtract mean
-    if subtract_mean:
-        data = sub_mean(data)
-
-    # convert to np array
-    data = np.array(data)
-    data_labels = np.array(data_labels)
-    data_cache = np.array(data_cache)
-
-    return data, data_labels, data_cache
+    return data, data_labels
 
 
 def load_data_labels():
+    """
+    Loads image location and labels from Excel file
+    :return
+         data_labels (np array): data labels corresponding to images (x1, x2, x3, y1, y2, y3)
+         full_labels (np array): image directory location + data_labels
+    """
     home_dir = os.getcwd()
     # Read data labels Excel file, which includes image directory location and label (x, y) information
     label_dir = home_dir + '\\labels.xlsx'
     if platform.system() == 'Darwin':
         label_dir = label_dir.replace("\\", "/")
-    # noinspection PyArgumentList
+
     full_labels = pd.read_excel(label_dir)
     data_labels = full_labels[['superior_patella_x', 'inferior_patella_x',
-                          'tibial_plateau_x', 'superior_patella_y',
-                          'inferior_patella_y', 'tibial_plateau_y']]
+                               'tibial_plateau_x', 'superior_patella_y',
+                               'inferior_patella_y', 'tibial_plateau_y']]
     data_labels = data_labels.to_numpy()
+
     return data_labels, full_labels
 
 
 def crop_images(data, data_labels):
-    cropped = []
+    cropped_images = []
+    cropped_labels = []
+    # reshape data_labels to tuples for transform operation
+    keypoints = list(zip(zip(data_labels[:, 0], data_labels[:, 3]),
+                         zip(data_labels[:, 1], data_labels[:, 4]),
+                         zip(data_labels[:, 2], data_labels[:, 5])))
+
     # crop image and labels into squares
     for i in range(len(data)):
-        y_dim, x_dim = data[i].shape
-        if y_dim > x_dim:
-            start = (y_dim - x_dim) // 2
-            end = (y_dim + x_dim) // 2
-            im_cropped = data[i][start:end, :]
+        dim = min(data[i].shape)
+        crop = A.Compose([A.CenterCrop(width=dim, height=dim, p=1.0)],
+                         keypoint_params=A.KeypointParams(format='xy'))
+        cropped = crop(image=data[i], keypoints=keypoints[i])
+        cropped_image = cropped['image']
+        cropped_keypoints = cropped['keypoints']
+        # reshape keypoint tuples back to original data_label shape
+        cropped_keypoints = [cropped_keypoints[0][0], cropped_keypoints[1][0],
+                             cropped_keypoints[2][0], cropped_keypoints[0][1],
+                             cropped_keypoints[1][1], cropped_keypoints[2][1]]
+        cropped_images.append(cropped_image)
+        cropped_labels.append(cropped_keypoints)
 
-            data_labels[i][3:] -= start
+    # convert to np array
+    cropped_labels = np.array(cropped_labels)
 
-        else:
-            start = (x_dim - y_dim) // 2
-            end = (x_dim + y_dim) // 2
-            im_cropped = data[i][:, start:end]
-            data_labels[i][:3] -= start
-        cropped.append(im_cropped)
-    return cropped, data_labels
+    return cropped_images, cropped_labels
 
 
-def rescale_images(data, data_labels, scale_dim):
-    scaled = []
-    # scale labels
+def rescale_images(data, data_labels, scale_dim=124):
+    scaled_images = []
+    scaled_labels = []
+    # reshape data_labels to tuples for transform operation
+    keypoints = list(zip(zip(data_labels[:, 0], data_labels[:, 3]),
+                         zip(data_labels[:, 1], data_labels[:, 4]),
+                         zip(data_labels[:, 2], data_labels[:, 5])))
+
+    # crop image and labels into squares
     for i in range(len(data)):
-        scaled_im = cv2.resize(data[i], (scale_dim, scale_dim))
-        y_pix_dim, x_pix_dim = data[i].shape
-        data_labels[i][:3] *= scale_dim / x_pix_dim
-        data_labels[i][3:] *= scale_dim / y_pix_dim
-        scaled.append(scaled_im)
-    return scaled, data_labels
+        scale = A.Compose([A.Resize(width=scale_dim, height=scale_dim)],
+                          keypoint_params=A.KeypointParams(format='xy'))
+        scaled = scale(image=data[i], keypoints=keypoints[i])
+        scaled_image = scaled['image']
+        scaled_keypoints = scaled['keypoints']
+        # reshape keypoint tuples back to original data_label shape
+        scaled_keypoints = [scaled_keypoints[0][0], scaled_keypoints[1][0],
+                            scaled_keypoints[2][0], scaled_keypoints[0][1],
+                            scaled_keypoints[1][1], scaled_keypoints[2][1]]
+        scaled_images.append(scaled_image)
+        scaled_labels.append(scaled_keypoints)
+
+    # convert to np array
+    scaled_images = np.array(scaled_images)
+    scaled_labels = np.array(scaled_labels)
+
+    return scaled_images, scaled_labels
 
 
-def sub_mean(data, *argv):
-    data = np.array(data).astype('float64')
-    mean_im = np.mean(data, axis=0)
-    std_im = np.std(data, axis=0)
-    data = (data - mean_im) / std_im
-    out = [data]
-    for arg in argv:
-        norm = (arg - mean_im) / std_im
-        out.append(norm)
-    out = tuple(out)
-    return out
+def train_val_test_split(data, data_labels):
+    _, full_labels = load_data_labels()  # full_labels includes image directory information | data labels is array of 6 output prediction coordinates
+
+    n = len(data)  # number of images total
+    data_labels = data_labels[:n]
+
+    train_idx, val_idx, test_idx = [], [], []
+
+    training_n, val_n, test_n = int(n * 0.6), int(n * 0.2), int(n * 0.2)
+
+    random.seed(1)  # initialize random seed to generate repeatable results
+    processed_set = set()
+
+    # debugging sets (can be removed)
+    train_set, val_set, test_set = set(), set(), set()
+
+    for i in range(n):
+        ran_num = random.random()  # initialize random number
+        img_id = full_labels.iloc[i]['lateral x-ray'][0:12]  # unique image ID (i.e. JUPITERW001R)
+
+        if img_id not in processed_set:
+            processed_set.add(img_id)
+
+            if ran_num < 0.34 and len(test_idx) < test_n:  # add to test set
+                test_idx.append(i)
+                test_set.add(img_id)
+
+                for j in range(i + 1, n):  # find all other images with same ID
+                    next_img_idx = full_labels.iloc[j]['lateral x-ray'][0:12]
+                    if next_img_idx == img_id:
+                        test_idx.append(j)
+            elif ran_num < 0.68 and len(val_idx) < val_n:  # add to val set
+                val_idx.append(i)
+                val_set.add(img_id)
+
+                for j in range(i + 1, n):  # find all other images with same ID
+                    next_img_idx = full_labels.iloc[j]['lateral x-ray'][0:12]
+                    if next_img_idx == img_id:
+                        val_idx.append(j)
+            else:  # add to train set
+                train_idx.append(i)
+                train_set.add(img_id)
+
+                for j in range(i + 1, n):  # find all other images with same ID
+                    next_img_idx = full_labels.iloc[j]['lateral x-ray'][0:12]
+                    if next_img_idx == img_id:
+                        train_idx.append(j)
+
+    train_img_name = np.array([full_labels.iloc[i]['lateral x-ray'] for i in train_idx])
+    val_img_name = np.array([full_labels.iloc[i]['lateral x-ray'] for i in val_idx])
+    test_img_name = np.array([full_labels.iloc[i]['lateral x-ray'] for i in test_idx])
+
+    train_data, train_data_labels = data[train_idx, :, :], data_labels[train_idx, :]
+    val_data, val_data_labels = data[val_idx, :, :], data_labels[val_idx, :]
+    test_data, test_data_labels = data[test_idx, :, :], data_labels[test_idx, :]
+
+    return train_data, train_data_labels, train_img_name, \
+           val_data, val_data_labels, val_img_name, \
+           test_data, test_data_labels, test_img_name
 
 
 def show_image(image, label=None):
@@ -193,9 +197,9 @@ def show_image(image, label=None):
     plt.show()
 
 
-def augment(data, data_labels, data_cache, n=100):
-    transform = A.Compose([
-        A.RandomResizedCrop(width=data.shape[1], height=data.shape[2], scale=(0.8, 1.0), ratio=(0.75, 1.3333333333333333), p=0.7),
+def augment_data(data, data_labels, data_names, n=100):
+    augment = A.Compose([
+        A.RandomResizedCrop(width=data.shape[1], height=data.shape[2], scale=(0.8, 1.0), ratio=(0.75, 1.33), p=0.7),
         A.RandomBrightnessContrast(p=0.9),
         A.Rotate(p=0.2),
         A.InvertImg(p=0.2),
@@ -209,104 +213,94 @@ def augment(data, data_labels, data_cache, n=100):
     keypoints = list(zip(zip(data_labels[:, 0], data_labels[:, 3]),
                          zip(data_labels[:, 1], data_labels[:, 4]),
                          zip(data_labels[:, 2], data_labels[:, 5])))
-    trfm_images, trfm_keypoints, trfm_name = [],[],[]
-    count = 0
-    for i in idxs:
-        transformed = transform(image=data[i], keypoints=keypoints[i])
-        transformed_image = transformed['image']
-        transformed_keypoints = transformed['keypoints']
+
+    aug_images, aug_labels, aug_names = [], [], []
+
+    for i in range(len(idxs)):
+        augmented = augment(image=data[idxs[i]], keypoints=keypoints[idxs[i]])
+        augmented_image = augmented['image']
+        augmented_keypoints = augmented['keypoints']
+
         # reshape keypoint tuples back to original data_label shape
-        transformed_keypoints = [transformed_keypoints[0][0], transformed_keypoints[1][0],
-                                 transformed_keypoints[2][0], transformed_keypoints[0][1],
-                                 transformed_keypoints[1][1], transformed_keypoints[2][1]]
-        transformed_name = data_cache[i][:-4] + "_aug" + str((idxs[:count + 1] == i).sum()) + ".dcm"
-        trfm_name.append(transformed_name)
-        trfm_images.append(transformed_image)
-        trfm_keypoints.append(transformed_keypoints)
-        count += 1
+        augmented_keypoints = [augmented_keypoints[0][0], augmented_keypoints[1][0],
+                               augmented_keypoints[2][0], augmented_keypoints[0][1],
+                               augmented_keypoints[1][1], augmented_keypoints[2][1]]
+
+        augmented_name = data_names[idxs[i]][:-4] + "_aug" + str((idxs[:i + 1] == idxs[i]).sum()) + ".dcm"
+
+        aug_images.append(augmented_image)
+        aug_labels.append(augmented_keypoints)
+        aug_names.append(augmented_name)
 
     # convert to np array
-    trfm_images = np.array(trfm_images)
-    trfm_keypoints = np.array(trfm_keypoints)
+    aug_images = np.array(aug_images)
+    aug_labels = np.array(aug_labels)
+    aug_names = np.array(aug_names)
 
-    return trfm_images, trfm_keypoints, (idxs, trfm_name)
-
-
-def unscale(image, label, data_cache):
-    raise NotImplementedError
+    return aug_images, aug_labels, aug_names
 
 
+def sub_mean(data, *argv):
+    data = data.astype('float64')
+    mean_im = np.mean(data, axis=0)
+    std_im = np.std(data, axis=0)
+    data = (data - mean_im) / std_im
+    out = [data]
+    for arg in argv:
+        norm = (arg - mean_im) / std_im
+        out.append(norm)
+    out.extend([mean_im, std_im])
+    return out
+
+
+def un_normalize(mean_im, std_im, *argv):
+    out = []
+    for arg in argv:
+        un_norm = arg * std_im + mean_im
+        un_norm = un_norm.astype('uint8')
+        out.append(un_norm)
+    if len(out) == 1:
+        out = out[0]
+    return out
 
 
 def main():
-    # **********************************************************
-    # load data (images and labels) and crop, rescale, and normalize (don't normalize yet if you want to augment data)
-    data, data_labels, data_cache = load_data(scale_dim=128, n=None, crop=True, subtract_mean=False)
-    print('Shape of original image array: ', data.shape)
-    print('Shape of original labels array: ', data_labels.shape)
+    # load data (images and labels), center crop data, and down-scale data
+    data, data_labels = load_data(n=None)
+    data, data_labels = crop_images(data, data_labels)
+    data, data_labels = rescale_images(data, data_labels, scale_dim=124)
+    print('\nShape of image array after crop and rescale: ', data.shape)
+    print('Shape of labels array after crop and rescale: ', data_labels.shape, '\n')
 
-    trainData, train_data_labels, train_data_cache, valData, val_data_labels, val_data_cache \
-        , testData, test_data_labels, test_data_cache = train_val_test_split(data, data_labels, data_cache)
+    # split data in train, validation, and test sets
+    train_data, train_data_labels, train_data_names, \
+    val_data, val_data_labels, val_data_names, \
+    test_data, test_data_labels, test_data_names = train_val_test_split(data, data_labels)
+    print('Train / Validation / Test:  ', train_data.shape[0], ' / ', val_data.shape[0], ' / ', test_data.shape[0])
 
-    train_data_names = train_data_cache[1]
-    test_data_names = test_data_cache[1]
-    val_data_names = val_data_cache[1]
+    # augment training data
+    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=400)
+    print('Augment size: ', train_aug.shape[0])
 
-    # feed in originally loaded data into augment()
-    # train_aug, train_aug_labels, train_aug_cache = augment(trainData, train_data_labels, train_data_cache[1], n=200)
-    # combine original data and augmented data, and normalize
-    # trainData = np.append(trainData, train_aug, axis=0)
-    # train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
-    # train_data_names = train_data_cache[1] + train_aug_cache[1]
+    # add augmented data to training set
+    train_data = np.append(train_data, train_aug, axis=0)
+    train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
+    train_data_names = np.append(train_data_names, train_aug_names, axis=0)
+    print('Train + augmented size: ', train_data.shape[0], '\n')
 
-    trainData, valData, testData = sub_mean(trainData, valData, testData)
+    # normalize the images using training set statistics
+    train_data, val_data, test_data, mean_im, std_im = sub_mean(train_data, val_data, test_data)
 
-    dict = {}
-    for i in range(len(train_data_names)):
-        dict[train_data_names[i]] = train_data_labels[i]
+    # save images to local directory
+    save_cdi_imgs(train_data, train_data_names, "train")
+    save_cdi_imgs(val_data, val_data_names, "val")
+    save_cdi_imgs(test_data, test_data_names, "test")
 
-    for i in range(len(test_data_names)):
-        dict[test_data_names[i]] = test_data_labels[i]
-
-    for i in range(len(val_data_names)):
-        dict[val_data_names[i]] = val_data_labels[i]
-
-    final_data = (trainData, train_data_labels, train_data_names,
-                valData, val_data_labels, val_data_names,
-                testData, test_data_labels, test_data_names)
-    
-    save_cdi_imgs(trainData, train_data_names, "train")
-    save_cdi_imgs(valData, val_data_names, "val")
-    save_cdi_imgs(testData, test_data_names, "test")
-
+    # save labels to local directory
     save_cdi_labels(train_data_labels.tolist(), train_data_names)
     save_cdi_labels(val_data_labels.tolist(), val_data_names)
     save_cdi_labels(test_data_labels.tolist(), test_data_names)
-    
-    # print('Shape of final image array: ', trainData.shape)
-    # print('Shape of final labels array: ', train_data_labels.shape)
-    # print('Shape of final name array: ', len(train_data_names))
-    # **********************************************************
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
-
-
-"""
-# show all images in augmented data (first shows original, then augmented)
-for i in range(len(cache)):
-    show_image(data[cache[i]], data_labels[cache[i]])
-    show_image(data_aug[i], data_aug_labels[i])
-
-# show all images in data (does not include augmented data)
-for i in range(len(data)):
-    show_image(data[i], data_labels[i])
-
-# show all images in data (does not include augmented data)
-for i in range(len(data_final)):
-    show_image(data_final[i], data_labels_final[i])
-
-# show mean image
-mean_im = np.mean(data, axis=0)
-show_image(mean_im)
-"""

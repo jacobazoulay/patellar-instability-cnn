@@ -17,7 +17,7 @@ sys.path.insert(0, './')
 from data_process import show_image
 
 
-EXTS = ['.png', '.jpeg', '.jpg']
+EXTS = ['.png', '.jpeg', '.jpg', '.npy']
 
 
 class CDIDataProcess(DataProcess):

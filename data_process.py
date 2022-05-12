@@ -92,7 +92,7 @@ def crop_images(data, data_labels):
     return cropped_images, cropped_labels
 
 
-def rescale_images(data, data_labels, scale_dim=124):
+def rescale_images(data, data_labels, scale_dim=128):
     scaled_images = []
     scaled_labels = []
     # reshape data_labels to tuples for transform operation
@@ -268,7 +268,7 @@ def main():
     # load data (images and labels), center crop data, and down-scale data
     data, data_labels = load_data(n=None)
     data, data_labels = crop_images(data, data_labels)
-    data, data_labels = rescale_images(data, data_labels, scale_dim=124)
+    data, data_labels = rescale_images(data, data_labels, scale_dim=128)
     print('\nShape of image array after crop and rescale: ', data.shape)
     print('Shape of labels array after crop and rescale: ', data_labels.shape, '\n')
 

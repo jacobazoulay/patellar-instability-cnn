@@ -20,10 +20,14 @@ Authors:
 ### Install requirements
     pip install -r requirements.txt
 
-### IV. Training/Testing a network
+### Training/Testing a network
     1. Set parameters in run.sh
     2. Run: ./run.sh
     3. Results are saved in './results' directory
     
 ### Plotting loss after training
     python tools/plot_loss.py path/to/results/trainlog.txt
+
+### Visualizing Predictions on Images
+    1. Run evaluation by setting train=0 in run.sh
+    2. Predictions are stored in path/to/results/Images

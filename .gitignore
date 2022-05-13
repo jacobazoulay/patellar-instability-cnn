@@ -1,5 +1,7 @@
 Images/
 labels.xlsx
+~$labels.xlsx
+~\$labels.xlsx
 *.DS_Store
 .idea/
 data/

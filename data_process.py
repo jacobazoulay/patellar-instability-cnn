@@ -169,9 +169,9 @@ def train_val_test_split(data, data_labels):
                     if next_img_idx == img_id:
                         train_idx.append(j)
 
-    train_img_name = np.array([full_labels.iloc[i]['lateral x-ray'] for i in train_idx])
-    val_img_name = np.array([full_labels.iloc[i]['lateral x-ray'] for i in val_idx])
-    test_img_name = np.array([full_labels.iloc[i]['lateral x-ray'] for i in test_idx])
+    train_img_name = np.array([full_labels.iloc[i]['lateral x-ray'].replace("\\", "_") for i in train_idx])
+    val_img_name = np.array([full_labels.iloc[i]['lateral x-ray'].replace("\\", "_") for i in val_idx])
+    test_img_name = np.array([full_labels.iloc[i]['lateral x-ray'].replace("\\", "_") for i in test_idx])
 
     train_data, train_data_labels = data[train_idx, :, :], data_labels[train_idx, :]
     val_data, val_data_labels = data[val_idx, :, :], data_labels[val_idx, :]
@@ -266,7 +266,7 @@ def un_normalize(mean_im, std_im, *argv):
 
 def main():
     # load data (images and labels), center crop data, and down-scale data
-    data, data_labels = load_data(n=None)
+    data, data_labels = load_data(n=10)
     data, data_labels = crop_images(data, data_labels)
     data, data_labels = rescale_images(data, data_labels, scale_dim=128)
     print('\nShape of image array after crop and rescale: ', data.shape)

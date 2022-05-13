@@ -125,7 +125,7 @@ def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
 
 def save_cdi_imgs(data, fnames, split):
     home_dir = os.getcwd()
-    outdir = os.path.join(home_dir, "data/CDI", split)
+    outdir = os.path.join(home_dir, "data","CDI", split)
     os.makedirs(outdir, exist_ok=True)
     print("saving Images...")
     for i in range(len(data)):
@@ -137,7 +137,7 @@ def save_cdi_imgs(data, fnames, split):
 
 def save_cdi_labels(labels, fnames):
     home_dir = os.getcwd()
-    outdir = os.path.join(home_dir, "data/CDI")
+    outdir = os.path.join(home_dir, "data", "CDI")
     os.makedirs(outdir, exist_ok=True)
     outfile = os.path.join(outdir, "labels.json")
     out = {}
@@ -154,7 +154,7 @@ def save_cdi_labels(labels, fnames):
 def save_cdi_cache(im_stats, label_stats):
     # save normalization statistics to un-scale after fed through the model
     home_dir = os.getcwd()
-    outdir = os.path.join(home_dir, "data/CDI", "cache")
+    outdir = os.path.join(home_dir, "data", "CDI", "cache")
     os.makedirs(outdir, exist_ok=True)
     print("saving Images...")
     fnames = ["im_mean", "im_std"]

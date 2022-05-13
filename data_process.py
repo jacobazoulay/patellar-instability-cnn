@@ -7,7 +7,7 @@ import os
 import platform
 import albumentations as A
 import random
-from shared.data_utils import save_cdi_imgs, save_cdi_labels
+from shared.data_utils import save_cdi_imgs, save_cdi_labels, save_cdi_cache
 
 
 def load_data(n=None):
@@ -75,7 +75,7 @@ def crop_images(data, data_labels):
     for i in range(len(data)):
         dim = min(data[i].shape)
         crop = A.Compose([A.CenterCrop(width=dim, height=dim, p=1.0)],
-                         keypoint_params=A.KeypointParams(format='xy'))
+                         keypoint_params=A.KeypointParams(format='xy', remove_invisible=False))
         cropped = crop(image=data[i], keypoints=keypoints[i])
         cropped_image = cropped['image']
         cropped_keypoints = cropped['keypoints']
@@ -103,7 +103,7 @@ def rescale_images(data, data_labels, scale_dim=128):
     # crop image and labels into squares
     for i in range(len(data)):
         scale = A.Compose([A.Resize(width=scale_dim, height=scale_dim)],
-                          keypoint_params=A.KeypointParams(format='xy'))
+                          keypoint_params=A.KeypointParams(format='xy', remove_invisible=False))
         scaled = scale(image=data[i], keypoints=keypoints[i])
         scaled_image = scaled['image']
         scaled_keypoints = scaled['keypoints']
@@ -185,7 +185,7 @@ def train_val_test_split(data, data_labels):
 def show_image(image, label=None):
     fig = plt.figure(figsize=(5, 5))
     ax = fig.add_subplot(111)
-    plt.imshow(image, cmap='gray')
+    plt.imshow(image, cmap='bone')
 
     if label is not None:
         plt.scatter(label[0], label[3])  # superior patella loc in blue
@@ -205,7 +205,7 @@ def augment_data(data, data_labels, data_names, n=100):
         A.InvertImg(p=0.2),
         A.VerticalFlip(p=0.3),
         A.HorizontalFlip(p=0.3)
-    ], keypoint_params=A.KeypointParams(format='xy'))
+    ], keypoint_params=A.KeypointParams(format='xy', remove_invisible=False))
 
     idxs = np.random.randint(0, len(data), size=n)
 
@@ -279,7 +279,7 @@ def main():
     print('Train / Validation / Test:  ', train_data.shape[0], ' / ', val_data.shape[0], ' / ', test_data.shape[0])
 
     # augment training data
-    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=400)
+    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=600)
     print('Augment size: ', train_aug.shape[0])
 
     # add augmented data to training set
@@ -290,6 +290,7 @@ def main():
 
     # normalize the images using training set statistics
     train_data, val_data, test_data, mean_im, std_im = sub_mean(train_data, val_data, test_data)
+    train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = sub_mean(train_data_labels, val_data_labels, test_data_labels)
 
     # save images to local directory
     save_cdi_imgs(train_data, train_data_names, "train")
@@ -300,6 +301,9 @@ def main():
     save_cdi_labels(train_data_labels.tolist(), train_data_names)
     save_cdi_labels(val_data_labels.tolist(), val_data_names)
     save_cdi_labels(test_data_labels.tolist(), test_data_names)
+
+    # save image and label normalization stats for unscaling
+    save_cdi_cache([mean_im, std_im], [list(mean_label), list(std_label)])
 
 
 if __name__ == "__main__":

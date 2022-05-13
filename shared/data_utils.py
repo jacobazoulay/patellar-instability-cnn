@@ -11,11 +11,34 @@ import io
 
 
 def load_img(args, path, method=0):
-    img = cv2.imread(path, method)
-    #img = cv2.resize(img, (512,512))
-    if method == 1:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = np.load(path)
     return img
+
+
+def un_normalize(mean_im, std_im, *argv):
+    out = []
+    for arg in argv:
+        un_norm = arg * std_im + mean_im
+        un_norm = un_norm.astype('uint8')
+        out.append(un_norm)
+    if len(out) == 1:
+        out = out[0]
+    return out
+
+
+def show_image(image, label=None):
+    fig = plt.figure(figsize=(5, 5))
+    ax = fig.add_subplot(111)
+    plt.imshow(image, cmap='gray')
+
+    if label is not None:
+        plt.scatter(label[0], label[3])  # superior patella loc in blue
+        plt.scatter(label[1], label[4])  # inferior patella loc in orange
+        plt.scatter(label[2], label[5])  # tibial_plateau loc in green
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.show()
 
 
 def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
@@ -106,9 +129,10 @@ def save_cdi_imgs(data, fnames, split):
     os.makedirs(outdir, exist_ok=True)
     print("saving Images...")
     for i in range(len(data)):
-        outfile = os.path.join(outdir, fnames[i] + ".png")
+        outfile = os.path.join(outdir, fnames[i] + ".npy")
         # print("saving %s" % (fnames[i]))
-        cv2.imwrite(outfile, data[i])
+        np.save(outfile, data[i])
+        # cv2.imwrite(outfile, data[i])
 
 
 def save_cdi_labels(labels, fnames):
@@ -127,11 +151,30 @@ def save_cdi_labels(labels, fnames):
         json.dump(out, f)
 
 
+def save_cdi_cache(im_stats, label_stats):
+    # save normalization statistics to un-scale after fed through the model
+    home_dir = os.getcwd()
+    outdir = os.path.join(home_dir, "data/CDI", "cache")
+    os.makedirs(outdir, exist_ok=True)
+    print("saving Images...")
+    fnames = ["im_mean", "im_std"]
+    for i in range(len(im_stats)):
+        outfile = os.path.join(outdir, fnames[i] + ".npy")
+        np.save(outfile, im_stats[i])
+
+    outfile = os.path.join(outdir, "label_stats.json")
+    out = {}
+    if os.path.exists(outfile):
+        out = json.load(open(outfile))
+    print("saving Labels...")
+    fnames = ["label_mean", "label_std"]
+    for i in range(len(label_stats)):
+        out[fnames[i]] = label_stats[i]
+
+    with open(outfile, 'w') as f:
+        json.dump(out, f)
+
+
 if __name__ == "__main__":
-    dat = np.zeros((2, 32, 32, 3))
-    labels = np.zeros((2, 6)).tolist()
-    fnames = ["f1", "f2"]
-    #test for saving labels
-    save_cdi_imgs(dat, labels, fnames, "train")
-    save_cdi_labels(labels, fnames)
+    pass
 

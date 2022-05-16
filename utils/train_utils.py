@@ -231,18 +231,20 @@ def metrics(split, args, epoch=0):
         batch_size = data_processes[0].batch_size
         Nb = int(N/batch_size)
         acc = []
+        overall_avg_keypt_dist = []
         preds = []
         truths = []
         if Nb*batch_size < N:
             Nb += 1
         # iterate over dataset in batches
         count = 0
+
         for bidx in tqdm(range(Nb)):
             item = data_queue.get()
             imgs, gts, meta = item
             N, W, H = imgs.shape
             lnm, losses, outputs = args.step(args, item)
-            acc.append(losses[1])
+            overall_avg_keypt_dist.append(losses[1])
             pred = outputs[0].cpu().numpy()
             preds.extend(pred)
             truths.extend(gts)
@@ -254,8 +256,8 @@ def metrics(split, args, epoch=0):
 
         preds = np.asarray(preds)
         truths = np.asarray(truths)
-        oacc = np.mean(acc)
-        odir = args.odir + '/acc'
+        o_avg_kpt_dist = np.mean(overall_avg_keypt_dist)
+        odir = args.odir + '/average_keypoint_dist'
         if not os.path.exists(odir):
             os.mkdir(odir)
         outfile = odir + '/results_%s_%d.txt' % (split, epoch + 1)
@@ -263,7 +265,7 @@ def metrics(split, args, epoch=0):
         #save results
         print("Saving results to %s ..." % (outfile))
         with open(outfile, 'w') as f:
-            f.write('oacc: %.5f\n' % (oacc))
+            f.write('average_keypoint_dist: %.5f\n' % (o_avg_kpt_dist))
 
 
 def view_predictions(args, imgs, gts, preds, meta, bid, epoch):

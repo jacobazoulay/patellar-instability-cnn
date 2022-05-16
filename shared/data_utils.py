@@ -14,7 +14,6 @@ def load_img(args, path, method=0):
     img = np.load(path)
     return img
 
-
 def un_normalize(mean_im, std_im, *argv):
     out = []
     for arg in argv:
@@ -29,9 +28,20 @@ def un_normalize(mean_im, std_im, *argv):
 def show_image(image, label=None):
     fig = plt.figure(figsize=(5, 5))
     ax = fig.add_subplot(111)
-    plt.imshow(image, cmap='gray')
+    plt.imshow(image, cmap='bone')
+
+    #un-normalize images and labels before displaying
+    project_dir = os.getcwd()
+    label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
+    img_mean = np.load(os.path.join(project_dir, "./data/CDI/cache/im_mean.npy"))
+    img_std = np.load(os.path.join(project_dir, "./data/CDI/cache/im_std.npy"))
+    label_mean = label_cache_stats['label_mean']
+    label_std = label_cache_stats['label_std']
+
+    image = un_normalize(img_mean, img_std, image)
 
     if label is not None:
+        label = un_normalize(label_mean, label_std, label)
         plt.scatter(label[0], label[3])  # superior patella loc in blue
         plt.scatter(label[1], label[4])  # inferior patella loc in orange
         plt.scatter(label[2], label[5])  # tibial_plateau loc in green
@@ -40,61 +50,6 @@ def show_image(image, label=None):
     ax.set_yticks([])
     plt.show()
 
-
-def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
-    # initialize the dimensions of the image to be resized and
-    # grab the image size
-    dim = None
-    (h, w) = image.shape[:2]
-
-    # if both the width and height are None, then return the
-    # original image
-    if width is None and height is None:
-        return image
-
-    # check to see if the width is None
-    if width is None:
-        # calculate the ratio of the height and construct the
-        # dimensions
-        r = height / float(h)
-        dim = (int(w * r), height)
-
-    # otherwise, the height is None
-    else:
-        # calculate the ratio of the width and construct the
-        # dimensions
-        r = width / float(w)
-        dim = (width, int(h * r))
-
-    # resize the image
-    resized = cv2.resize(image, dim, interpolation=inter)
-
-    # return the resized image
-    return resized
-
-
-def cv_imshow(name, data):
-    cv2.imshow(name, data)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-
-def show_img_gt(args, title, data):
-    fig = plt.figure()
-    n_images = len(data)
-    cols = 1
-    for i in range(n_images):
-        a = fig.add_subplot(cols, np.ceil(n_images/float(cols)), i + 1)
-        plot = plt.imshow(data[i])
-        plot.axes.get_xaxis().set_visible(False)
-        plot.axes.get_yaxis().set_visible(False)
-        a.set_title(title[i])
-    fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
-    fig.tight_layout()
-    fig.patch.set_alpha(1)
-    plt.show(block=True)
-
-
 def plot_labels(label, c):
     plt.scatter(label[0], label[3], color=c)  # superior patella loc in blue
     plt.scatter(label[1], label[4], color=c)  # inferior patella loc in orange
@@ -102,11 +57,17 @@ def plot_labels(label, c):
 
 
 def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
+    #unnormalize img and labels before saving
+    image = un_normalize(args.img_mean, args.img_std, img)
+    labels_pred = un_normalize(args.label_mean, args.label_std, pred_kpts)
+    labels_gt = un_normalize(args.label_mean, args.label_std, gt_kpts)
+
+
     fig = plt.figure()
-    plot = plt.imshow(img, cmap='gray')
+    plot = plt.imshow(image, cmap='bone')
     
-    plot_labels(gt_kpts, 'green')
-    plot_labels(pred_kpts*255.0, 'red')
+    plot_labels(labels_gt, 'green')
+    plot_labels(labels_pred, 'red')
 
     plot.axes.get_xaxis().set_visible(False)
     plot.axes.get_yaxis().set_visible(False)

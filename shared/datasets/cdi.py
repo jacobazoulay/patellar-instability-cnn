@@ -12,7 +12,7 @@ import json
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dataprocess import DataProcess, get_while_running, kill_data_processes
-from data_utils import load_img, show_img_gt
+from data_utils import load_img
 sys.path.insert(0, './')
 from data_process import show_image
 
@@ -45,6 +45,14 @@ class CDIDataProcess(DataProcess):
         data_paths = [f for f in glob.glob(args.DATA_PATH+"/*")]
         labels_json_pth = "data/%s/%s" % ("CDI", "labels.json")
         labels_json = json.load(open(labels_json_pth))
+
+        #load normalization cache
+        project_dir = os.getcwd()
+        label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
+        args.img_mean = np.load(os.path.join(project_dir, "./data/CDI/cache/im_mean.npy"))
+        args.img_std = np.load(os.path.join(project_dir, "./data/CDI/cache/im_std.npy"))
+        args.label_mean = label_cache_stats['label_mean']
+        args.label_std = label_cache_stats['label_std']
 
         self.data_paths = data_paths
         self.labels_json = labels_json

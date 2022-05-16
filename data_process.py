@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
+import json
 import platform
 import albumentations as A
 import random
@@ -187,7 +188,18 @@ def show_image(image, label=None):
     ax = fig.add_subplot(111)
     plt.imshow(image, cmap='bone')
 
+    #un-normalize images and labels before displaying
+    project_dir = os.getcwd()
+    label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
+    img_mean = np.load(os.path.join(project_dir, "./data/CDI/cache/im_mean.npy"))
+    img_std = np.load(os.path.join(project_dir, "./data/CDI/cache/im_std.npy"))
+    label_mean = label_cache_stats['label_mean']
+    label_std = label_cache_stats['label_std']
+
+    image = un_normalize(img_mean, img_std, image)
+
     if label is not None:
+        label = un_normalize(label_mean, label_std, label)
         plt.scatter(label[0], label[3])  # superior patella loc in blue
         plt.scatter(label[1], label[4])  # inferior patella loc in orange
         plt.scatter(label[2], label[5])  # tibial_plateau loc in green

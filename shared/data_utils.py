@@ -75,7 +75,7 @@ def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
     fig.set_size_inches(np.array(fig.get_size_inches()))
     fig.tight_layout()
     fig.patch.set_alpha(1)
-    plt.show(block=False)
+    #plt.show(block=False)
     
     plot_path = os.path.join(args.odir, 'images', str(epoch), str(bid))
     if not os.path.exists(plot_path):

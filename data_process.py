@@ -278,7 +278,7 @@ def un_normalize(mean_im, std_im, *argv):
 
 def main():
     # load data (images and labels), center crop data, and down-scale data
-    data, data_labels = load_data(n=10)
+    data, data_labels = load_data(n=None)
     data, data_labels = crop_images(data, data_labels)
     data, data_labels = rescale_images(data, data_labels, scale_dim=128)
     print('\nShape of image array after crop and rescale: ', data.shape)
@@ -291,7 +291,7 @@ def main():
     print('Train / Validation / Test:  ', train_data.shape[0], ' / ', val_data.shape[0], ' / ', test_data.shape[0])
 
     # augment training data
-    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=600)
+    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=2000)
     print('Augment size: ', train_aug.shape[0])
 
     # add augmented data to training set

@@ -103,20 +103,29 @@ def resume(args, i):
 def create_optimizer(args, model):
     params = filter(lambda p: p.requires_grad, model.parameters())
     print(args.optim)
-    if args.optim=='sgd':
+    if args.optim == 'sgd':
         optimizer = optim.SGD(params, lr=args.lr, momentum=args.momentum, weight_decay=args.wd)
+    elif args.optim == 'adam':
+        optimizer = optim.Adam(params, lr=args.lr, betas=args.betas, weight_decay=args.wd)
+    elif args.optim == 'adagrad':
+        optimizer = optim.Adagrad(params, lr=args.lr, lr_decay=args.lr_decay, weight_decay=args.wd)
+    elif args.optim == 'rmsprop':
+        optimizer = optim.RMSprop(params, lr=args.lr, alpha=args.alpha, weight_decay=args.wd, momentum=args.momentum)
+    elif args.optim == 'adadelta':
+        optimizer = optim.Adadelta(params, lr=args.lr, rho=args.rho, weight_decay=args.wd)
     else:
-        raise ValueError('Only Support SGD optimizer')
+        raise ValueError('Only Support SGD, adam, adagrad, rmsprop, and adadelta')
     return optimizer
 
 
 def set_seed(seed, cuda=True):
     """ Sets seeds in all frameworks"""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if cuda:
-        torch.cuda.manual_seed(seed)
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if cuda:
+            torch.cuda.manual_seed(seed)
 
 
 def train(args, epoch, data_queue, data_processes):

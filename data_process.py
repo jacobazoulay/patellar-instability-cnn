@@ -300,6 +300,15 @@ def main():
     train_data_names = np.append(train_data_names, train_aug_names, axis=0)
     print('Train + augmented size: ', train_data.shape[0], '\n')
 
+    edge_transform = False
+    if edge_transform:
+        for im in train_data:
+            im = cv2.Canny(im, 30, 188)
+        for im in val_data:
+            im = cv2.Canny(im, 30, 188)
+        for im in test_data:
+            im = cv2.Canny(im, 30, 188)
+
     # normalize the images using training set statistics
     train_data, val_data, test_data, mean_im, std_im = sub_mean(train_data, val_data, test_data)
     train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = sub_mean(train_data_labels, val_data_labels, test_data_labels)
@@ -316,6 +325,41 @@ def main():
 
     # save image and label normalization stats for unscaling
     save_cdi_cache([mean_im, std_im], [list(mean_label), list(std_label)])
+
+
+def calibrate_canny():
+    # used to visualize which canny edge detection threshold parameters work best for this data
+    # use sliders to control bounds
+    # press 'Esc' key to exit
+
+    # load data (images and labels), center crop data, and down-scale data
+    data, data_labels = load_data(n=1)
+    data, data_labels = crop_images(data, data_labels)
+    data, data_labels = rescale_images(data, data_labels, scale_dim=128)
+
+    def callback(x):
+        print(x)
+
+    img = data[0]  # read image as grayscale
+
+    canny = cv2.Canny(img, 85, 255)
+
+    cv2.namedWindow('image')  # make a window with name 'image'
+    cv2.createTrackbar('Lower', 'image', 0, 255, callback)  # lower threshold trackbar for window 'image
+    cv2.createTrackbar('Upper', 'image', 0, 255, callback)  # upper threshold trackbar for window 'image
+
+    while (1):
+        numpy_horizontal_concat = np.concatenate((img, canny), axis=1)  # to display image side by side
+        cv2.imshow('image', numpy_horizontal_concat)
+        k = cv2.waitKey(1) & 0xFF
+        if k == 27:  # escape key
+            break
+        l = cv2.getTrackbarPos('Lower', 'image')
+        u = cv2.getTrackbarPos('Upper', 'image')
+
+        canny = cv2.Canny(img, l, u)
+
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

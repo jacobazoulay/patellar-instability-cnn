@@ -14,7 +14,9 @@ from torch.nn import functional as F
 import numpy as np
 
 from common import weights_init, FullModel
-from Model import KeypointModel as CDINet
+#from Model import KeypointModel as CDINet 
+from ModelPreTrained import KeypointPretrainedModel as CDINet #modifying this to use pretrained model
+
 
 
 def CDINet_setup(args):

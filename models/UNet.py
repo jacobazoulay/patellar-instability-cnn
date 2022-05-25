@@ -62,9 +62,9 @@ def UNet_step(args, item):
     if len(args.gpus) > 0:
         avg_keypoint_dist = avg_keypoint_dist.detach().cpu().numpy()
 
-    losses = [loss, reconstruction_loss, pred_loss, avg_keypoint_dist]
+    losses = [loss,  avg_keypoint_dist, reconstruction_loss, pred_loss]
     outputs = [pred]
-    loss_names = ['avg_loss', 'rec_loss', 'kpt_loss', 'avg_keypt_dist']
+    loss_names = ['avg_loss', 'avg_keypt_dist', 'rec_loss', 'kpt_loss',]
     return loss_names, losses, outputs
 
 

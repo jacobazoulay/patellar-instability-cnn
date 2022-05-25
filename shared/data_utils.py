@@ -122,7 +122,7 @@ def save_cdi_cache(im_stats, label_stats):
     for i in range(len(im_stats)):
         outfile = os.path.join(outdir, fnames[i] + ".npy")
         np.save(outfile, im_stats[i])
-
+    
     outfile = os.path.join(outdir, "label_stats.json")
     out = {}
     if os.path.exists(outfile):
@@ -134,7 +134,7 @@ def save_cdi_cache(im_stats, label_stats):
 
     with open(outfile, 'w') as f:
         json.dump(out, f)
-
+    
 
 if __name__ == "__main__":
     pass

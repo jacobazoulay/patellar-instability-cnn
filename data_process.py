@@ -189,13 +189,14 @@ def show_image(image, label=None):
     plt.imshow(image, cmap='bone')
 
     #un-normalize images and labels before displaying
+    
     project_dir = os.getcwd()
-    label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
     img_mean = np.load(os.path.join(project_dir, "./data/CDI/cache/im_mean.npy"))
     img_std = np.load(os.path.join(project_dir, "./data/CDI/cache/im_std.npy"))
+    label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
     label_mean = label_cache_stats['label_mean']
     label_std = label_cache_stats['label_std']
-
+    
     image = un_normalize(img_mean, img_std, image)
 
     if label is not None:
@@ -329,7 +330,7 @@ def calibrate_canny():
 def main():
     # load data (images and labels), center crop data, and down-scale data
     n_imgs = None  # None loads all 304 images
-    n_aug = 5000   # number of augmented images to create
+    n_aug = 1000   # number of augmented images to create
     use_edges = False   # whether to use edge detection transformations
 
     data, data_labels = load_data(n=n_imgs)

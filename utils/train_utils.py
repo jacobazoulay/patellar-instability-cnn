@@ -265,8 +265,6 @@ def metrics(split, args, epoch=0):
 
         preds = np.asarray(preds)
         truths = np.asarray(truths)
-        if args.gpus > 0:
-            overall_avg_keypt_dist = overall_avg_keypt_dist.detach().cpu().numpy()
         o_avg_kpt_dist = np.mean(overall_avg_keypt_dist)
         odir = args.odir + '/average_keypoint_dist'
         if not os.path.exists(odir):

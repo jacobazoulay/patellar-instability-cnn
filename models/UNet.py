@@ -28,7 +28,7 @@ def UNet_create_model(args):
     args.gpus = list(range(torch.cuda.device_count()))
     args.nparams = sum([p.numel() for p in model.parameters()])
     print('Total number of parameters: {}'.format(args.nparams))
-    if args.gpus > 0:
+    if len(args.gpus) > 0:
         model = model.cuda()
     return model
 

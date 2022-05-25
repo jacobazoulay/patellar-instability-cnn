@@ -32,7 +32,7 @@ def load_data(n=None):
 
         # load and store images in data array
         image_path = home_dir + '\\Images\\' + full_labels.iloc[i]['lateral x-ray']
-        if platform.system() == 'Darwin':
+        if platform.system() == 'Darwin' or platform.system() == 'Linux':
             image_path = image_path.replace("\\", "/")
         ds = dcmread(image_path)
         image = ds.pixel_array  # pixel data is stored in 'pixel_array' element which is like a np array
@@ -52,7 +52,7 @@ def load_data_labels():
     home_dir = os.getcwd()
     # Read data labels Excel file, which includes image directory location and label (x, y) information
     label_dir = home_dir + '\\labels.xlsx'
-    if platform.system() == 'Darwin':
+    if platform.system() == 'Darwin' or platform.system() == 'Linux':
         label_dir = label_dir.replace("\\", "/")
 
     full_labels = pd.read_excel(label_dir)

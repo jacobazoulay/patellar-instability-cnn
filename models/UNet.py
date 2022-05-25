@@ -60,7 +60,7 @@ def UNet_step(args, item):
     sqrt_dist = torch.sum((targets - pred)**2, axis=0)
     avg_keypoint_dist = torch.sqrt(torch.mean(sqrt_dist))
     if args.gpus > 0:
-        avg_keypt_dist = avg_keypt_dist.detach().cpu().numpy()
+        avg_keypoint_dist = avg_keypoint_dist.detach().cpu().numpy()
 
     losses = [loss, reconstruction_loss, pred_loss, avg_keypoint_dist]
     outputs = [pred]

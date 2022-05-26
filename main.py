@@ -8,6 +8,7 @@ from parse_args import parse_args
 from CDINet import *
 from AlexNet import *
 from UNet import *
+from VGGNet import *
 from shared.dataprocess import kill_data_processes
 from train_utils import model_at, parse_experiment, metrics, train, test, \
    data_setup, set_seed, create_optimizer, check_overwrite, resume

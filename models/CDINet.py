@@ -31,12 +31,10 @@ def CDINet_create_model(args):
     print('Total number of parameters: {}'.format(args.nparams))
     criterion = nn.MSELoss()
     model = FullModel(model, criterion)
-    """
     if len(args.gpus) > 0:
         model = nn.DataParallel(model, device_ids=args.gpus).cuda()
     else:
         model = nn.DataParallel(model, device_ids=args.gpus)
-    """
     model.apply(weights_init)
     return model
 

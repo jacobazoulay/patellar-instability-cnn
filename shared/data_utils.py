@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import count as count_func
 import json
+import torch
 from collections import defaultdict
 
 from PIL import Image
@@ -22,6 +23,19 @@ def un_normalize(mean_im, std_im, *argv):
         out.append(un_norm)
     if len(out) == 1:
         out = out[0]
+    return out
+
+
+def un_norm_avg_key_dist(mean_im, std_im, target, pred):
+    mean_im = torch.tensor(mean_im)
+    std_im = torch.tensor(std_im)
+    target = target * std_im + mean_im
+    pred = pred * std_im + mean_im
+    test = torch.square(target[:, 0] - pred[:, 0])
+    d1 = torch.sqrt(torch.square(target[:, 0] - pred[:, 0]) + torch.square(target[:, 1] - pred[:, 1]))
+    d2 = torch.sqrt(torch.square(target[:, 2] - pred[:, 2]) + torch.square(target[:, 3] - pred[:, 3]))
+    d3 = torch.sqrt(torch.square(target[:, 4] - pred[:, 4]) + torch.square(target[:, 5] - pred[:, 5]))
+    out = torch.mean((d1 + d2 + d3) / 3)
     return out
 
 

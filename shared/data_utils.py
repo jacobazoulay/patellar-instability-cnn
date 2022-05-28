@@ -106,7 +106,7 @@ def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
     #plt.show(block=False)
     
     now = datetime.now()
-    dt_str = now.strftime("%m/%d/%Y %H:%M:%S")
+    dt_str = now.strftime("%m_%d_%Y %H_%M_%S")
 
     plot_path = os.path.join(args.odir, 'images', str(epoch), str(bid))
     if not os.path.exists(plot_path):

@@ -330,6 +330,14 @@ def sub_mean(data, *argv):
     return out
 
 
+def norm_labels(*argv):
+    out = []
+    for arg in argv:
+        norm = arg / 64 - 1
+        out.append(norm)
+    return out
+
+
 def un_normalize(mean_im, std_im, *argv):
     out = []
     for arg in argv:
@@ -379,7 +387,7 @@ def calibrate_canny():
 def main():
     # load data (images and labels), center crop data, and down-scale data
     n_imgs = None  # None loads all 304 images
-    n_aug = 1000   # number of augmented images to create
+    n_aug = 4000   # number of augmented images to create
     use_edges = False   # whether to use edge detection transformations
 
     data, data_labels = load_data(n=n_imgs)
@@ -441,8 +449,11 @@ def main():
     else:
         # normalize the images using training set statistics
         train_data, val_data, test_data, mean_im, std_im = sub_mean(train_data, val_data, test_data)
-        train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = sub_mean(train_data_labels, val_data_labels, test_data_labels)
-
+        # train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = norm_labels(train_data_labels, val_data_labels, test_data_labels)
+        train_data_labels, val_data_labels, test_data_labels = norm_labels(train_data_labels, val_data_labels,
+                                                                           test_data_labels)
+        mean_label = np.zeros(6)
+        std_label = np.ones(6) / 64
         # save images to local directory
         save_cdi_imgs(train_data, train_data_names, "train")
         save_cdi_imgs(val_data, val_data_names, "val")
@@ -455,7 +466,6 @@ def main():
     save_cdi_labels(train_data_labels.tolist(), train_data_names)
     save_cdi_labels(val_data_labels.tolist(), val_data_names)
     save_cdi_labels(test_data_labels.tolist(), test_data_names)
-
 
 if __name__ == "__main__":
     main()

@@ -16,6 +16,7 @@ import torchvision.models as models
 import os
 import json
 from shared.data_utils import un_norm_avg_key_dist
+from shared.data_utils import un_standard_avg_key_dist
 
 from common import weights_init, FullModel
 
@@ -68,10 +69,11 @@ def VGGNet_step(args, item):
     loss = loss.mean()
 
     #compute metrics
-    label_cache_stats = json.load(open(os.path.join(os.getcwd(), "data/CDI/cache/label_stats.json")))
-    label_mean = label_cache_stats['label_mean']
-    label_std = label_cache_stats['label_std']
-    avg_keypoint_dist = un_norm_avg_key_dist(label_mean, label_std, targets, pred)
+    # label_cache_stats = json.load(open(os.path.join(os.getcwd(), "data/CDI/cache/label_stats.json")))
+    # label_mean = label_cache_stats['label_mean']
+    # label_std = label_cache_stats['label_std']
+    # avg_keypoint_dist = un_norm_avg_key_dist(label_mean, label_std, targets, pred)
+    avg_keypoint_dist = un_standard_avg_key_dist(targets, pred)
     if len(args.gpus) > 0:
         avg_keypoint_dist = avg_keypoint_dist.detach().cpu().numpy()
 

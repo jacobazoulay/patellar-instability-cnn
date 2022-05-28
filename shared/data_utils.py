@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import count as count_func
 import json
+import torch
 from collections import defaultdict
 
 from PIL import Image
@@ -14,6 +15,7 @@ def load_img(args, path, method=0):
     img = np.load(path)
     return img
 
+
 def un_normalize(mean_im, std_im, *argv):
     out = []
     for arg in argv:
@@ -22,6 +24,28 @@ def un_normalize(mean_im, std_im, *argv):
         out.append(un_norm)
     if len(out) == 1:
         out = out[0]
+    return out
+
+
+def un_norm_avg_key_dist(mean_im, std_im, target, pred):
+    mean_im = torch.tensor(mean_im)
+    std_im = torch.tensor(std_im)
+    target = target * std_im + mean_im
+    pred = pred * std_im + mean_im
+    d1 = torch.sqrt(torch.square(target[:, 0] - pred[:, 0]) + torch.square(target[:, 1] - pred[:, 1]))
+    d2 = torch.sqrt(torch.square(target[:, 2] - pred[:, 2]) + torch.square(target[:, 3] - pred[:, 3]))
+    d3 = torch.sqrt(torch.square(target[:, 4] - pred[:, 4]) + torch.square(target[:, 5] - pred[:, 5]))
+    out = torch.mean((d1 + d2 + d3) / 3)
+    return out
+
+
+def un_standard_avg_key_dist(target, pred):
+    target = (target + 1) * 64
+    pred = (pred + 1) * 64
+    d1 = torch.sqrt(torch.square(target[:, 0] - pred[:, 0]) + torch.square(target[:, 1] - pred[:, 1]))
+    d2 = torch.sqrt(torch.square(target[:, 2] - pred[:, 2]) + torch.square(target[:, 3] - pred[:, 3]))
+    d3 = torch.sqrt(torch.square(target[:, 4] - pred[:, 4]) + torch.square(target[:, 5] - pred[:, 5]))
+    out = torch.mean((d1 + d2 + d3) / 3)
     return out
 
 
@@ -41,7 +65,8 @@ def show_image(image, label=None):
     image = un_normalize(img_mean, img_std, image)
 
     if label is not None:
-        label = un_normalize(label_mean, label_std, label)
+        # label = un_normalize(label_mean, label_std, label)
+        label = (label + 1) * 64
         plt.scatter(label[0], label[3])  # superior patella loc in blue
         plt.scatter(label[1], label[4])  # inferior patella loc in orange
         plt.scatter(label[2], label[5])  # tibial_plateau loc in green
@@ -59,8 +84,10 @@ def plot_labels(label, c):
 def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
     #unnormalize img and labels before saving
     image = un_normalize(args.img_mean, args.img_std, img)
-    labels_pred = un_normalize(args.label_mean, args.label_std, pred_kpts)
-    labels_gt = un_normalize(args.label_mean, args.label_std, gt_kpts)
+    # labels_pred = un_normalize(args.label_mean, args.label_std, pred_kpts)
+    # labels_gt = un_normalize(args.label_mean, args.label_std, gt_kpts)
+    labels_pred = (pred_kpts + 1) * 64
+    labels_gt = (gt_kpts + 1) * 64
 
 
     fig = plt.figure()
@@ -122,7 +149,7 @@ def save_cdi_cache(im_stats, label_stats):
     for i in range(len(im_stats)):
         outfile = os.path.join(outdir, fnames[i] + ".npy")
         np.save(outfile, im_stats[i])
-
+    
     outfile = os.path.join(outdir, "label_stats.json")
     out = {}
     if os.path.exists(outfile):
@@ -134,7 +161,7 @@ def save_cdi_cache(im_stats, label_stats):
 
     with open(outfile, 'w') as f:
         json.dump(out, f)
-
+    
 
 if __name__ == "__main__":
     pass

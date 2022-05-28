@@ -104,7 +104,7 @@ def test_process():
         #check labels visually
         n, w, h = imgs.shape
         for i in range(len(imgs)):
-            show_image(imgs[i], gts[i])
+            show_image(imgs[i], gts[i], meta[i][1])
             #imgname = meta[i][1]
             #cv2.imshow(imgname,imgs[i])
             #cv2.waitKey(0)

@@ -32,7 +32,7 @@ def load_data(n=None):
 
         # load and store images in data array
         image_path = home_dir + '\\Images\\' + full_labels.iloc[i]['lateral x-ray']
-        if platform.system() == 'Darwin':
+        if platform.system() == 'Darwin' or platform.system() == 'Linux':
             image_path = image_path.replace("\\", "/")
         ds = dcmread(image_path)
         image = ds.pixel_array  # pixel data is stored in 'pixel_array' element which is like a np array
@@ -52,7 +52,7 @@ def load_data_labels():
     home_dir = os.getcwd()
     # Read data labels Excel file, which includes image directory location and label (x, y) information
     label_dir = home_dir + '\\labels.xlsx'
-    if platform.system() == 'Darwin':
+    if platform.system() == 'Darwin' or platform.system() == 'Linux':
         label_dir = label_dir.replace("\\", "/")
 
     full_labels = pd.read_excel(label_dir)
@@ -183,19 +183,23 @@ def train_val_test_split(data, data_labels):
            test_data, test_data_labels, test_img_name
 
 
-def show_image(image, label=None):
+def show_image(image, label=None, title=None):
     fig = plt.figure(figsize=(5, 5))
     ax = fig.add_subplot(111)
     plt.imshow(image, cmap='bone')
 
+    if title is not None:
+        plt.title(title)
+
     #un-normalize images and labels before displaying
+    
     project_dir = os.getcwd()
-    label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
     img_mean = np.load(os.path.join(project_dir, "./data/CDI/cache/im_mean.npy"))
     img_std = np.load(os.path.join(project_dir, "./data/CDI/cache/im_std.npy"))
+    label_cache_stats = json.load(open(os.path.join(project_dir, "data/CDI/cache/label_stats.json")))
     label_mean = label_cache_stats['label_mean']
     label_std = label_cache_stats['label_std']
-
+    
     image = un_normalize(img_mean, img_std, image)
 
     if label is not None:
@@ -209,14 +213,29 @@ def show_image(image, label=None):
     plt.show()
 
 
+def show_image_no_norm(image, label=None):
+    fig = plt.figure(figsize=(5, 5))
+    ax = fig.add_subplot(111)
+    plt.imshow(image, cmap='bone')
+
+    if label is not None:
+        plt.scatter(label[0], label[3])  # superior patella loc in blue
+        plt.scatter(label[1], label[4])  # inferior patella loc in orange
+        plt.scatter(label[2], label[5])  # tibial_plateau loc in green
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.show()
+
+
 def augment_data(data, data_labels, data_names, n=100):
     augment = A.Compose([
         A.RandomResizedCrop(width=data.shape[1], height=data.shape[2], scale=(0.8, 1.0), ratio=(0.75, 1.33), p=0.7),
         A.RandomBrightnessContrast(p=0.9),
-        A.Rotate(p=0.2),
+        A.Rotate(limit=(-45, 45), p=1, border_mode=4),
         A.InvertImg(p=0.2),
-        A.VerticalFlip(p=0.3),
-        A.HorizontalFlip(p=0.3)
+        # A.VerticalFlip(p=0.3),
+        #A.HorizontalFlip(p=0.3)
     ], keypoint_params=A.KeypointParams(format='xy', remove_invisible=False))
 
     idxs = np.random.randint(0, len(data), size=n)
@@ -226,10 +245,50 @@ def augment_data(data, data_labels, data_names, n=100):
                          zip(data_labels[:, 1], data_labels[:, 4]),
                          zip(data_labels[:, 2], data_labels[:, 5])))
 
+    #sort the data into left and right images to balance the data
+    left_data, left_keypoints, left_data_names = [], [], []
+    right_data, right_keypoints, right_data_names = [], [], []
+    for idx, name in enumerate(data_names):
+        direction = name.split("_")[0][len("JUPITER") + 5 - 1] # L or R
+        if direction not in ['R', 'L']:
+            raise Exception("invalid character %s for x-ray direction" % (direction))
+        if direction == 'R':
+            right_data.append(data[idx])
+            right_keypoints.append(keypoints[idx])
+            right_data_names.append(data_names[idx])
+        elif direction == 'L':
+            left_data.append(data[idx])
+            left_keypoints.append(keypoints[idx])
+            left_data_names.append(data_names[idx])
+    n_left = len(left_data)
+    n_right = len(right_data)
+    assert n_left > 0, "need at least one left image"
+    assert n_right > 0, "need at least one right image"
+    assert len(left_data) == len(left_keypoints) == len(left_data_names), "unequal left data and label lengths"
+    assert len(right_data) == len(right_keypoints) == len(right_data_names), "unequal right data and label lengths"
+    print("length of left training data before augmentation: %d" % (n_left))
+    print("length of right training data before augmentation: %d" % (n_right))                     
+
     aug_images, aug_labels, aug_names = [], [], []
 
+    left_idx = 0
+    right_idx = 0
     for i in range(len(idxs)):
-        augmented = augment(image=data[idxs[i]], keypoints=keypoints[idxs[i]])
+        if n_left > n_right: # augment a right image
+            cur_data = right_data[right_idx]
+            cur_keypoints = right_keypoints[right_idx]
+            cur_name = right_data_names[right_idx]
+            right_idx = (right_idx + 1) % len(right_data)
+            n_right += 1
+        elif n_left <= n_right: # augment a left image
+            cur_data = left_data[left_idx]
+            cur_keypoints = left_keypoints[left_idx]
+            cur_name = left_data_names[left_idx]
+            left_idx = (left_idx + 1) % len(left_data)
+            n_left += 1
+
+        #augmented = augment(image=data[idxs[i]], keypoints=keypoints[idxs[i]])
+        augmented = augment(image=cur_data, keypoints=cur_keypoints)
         augmented_image = augmented['image']
         augmented_keypoints = augmented['keypoints']
 
@@ -238,7 +297,8 @@ def augment_data(data, data_labels, data_names, n=100):
                                augmented_keypoints[2][0], augmented_keypoints[0][1],
                                augmented_keypoints[1][1], augmented_keypoints[2][1]]
 
-        augmented_name = data_names[idxs[i]][:-4] + "_aug" + str((idxs[:i + 1] == idxs[i]).sum()) + ".dcm"
+        #augmented_name = data_names[idxs[i]][:-4] + "_aug" + str((idxs[:i + 1] == idxs[i]).sum()) + ".dcm"
+        augmented_name = cur_name[:-4] + "_aug" + str(i) + ".dcm"
 
         aug_images.append(augmented_image)
         aug_labels.append(augmented_keypoints)
@@ -249,6 +309,11 @@ def augment_data(data, data_labels, data_names, n=100):
     aug_labels = np.array(aug_labels)
     aug_names = np.array(aug_names)
 
+    print("length of left training data after augmentation: %d" % (n_left))
+    print("length of right training data after augmentation: %d" % (n_right))
+    print(data_names)
+    print(aug_names)
+
     return aug_images, aug_labels, aug_names
 
 
@@ -256,12 +321,20 @@ def sub_mean(data, *argv):
     data = data.astype('float64')
     mean_im = np.mean(data, axis=0)
     std_im = np.std(data, axis=0)
-    data = (data - mean_im) / std_im
+    data = (data - mean_im) / (std_im + 1e-10)
     out = [data]
     for arg in argv:
-        norm = (arg - mean_im) / std_im
+        norm = (arg - mean_im) / (std_im + 1e-10)
         out.append(norm)
     out.extend([mean_im, std_im])
+    return out
+
+
+def norm_labels(*argv):
+    out = []
+    for arg in argv:
+        norm = arg / 64 - 1
+        out.append(norm)
     return out
 
 
@@ -274,57 +347,6 @@ def un_normalize(mean_im, std_im, *argv):
     if len(out) == 1:
         out = out[0]
     return out
-
-
-def main():
-    # load data (images and labels), center crop data, and down-scale data
-    data, data_labels = load_data(n=None)
-    data, data_labels = crop_images(data, data_labels)
-    data, data_labels = rescale_images(data, data_labels, scale_dim=128)
-    print('\nShape of image array after crop and rescale: ', data.shape)
-    print('Shape of labels array after crop and rescale: ', data_labels.shape, '\n')
-
-    # split data in train, validation, and test sets
-    train_data, train_data_labels, train_data_names, \
-    val_data, val_data_labels, val_data_names, \
-    test_data, test_data_labels, test_data_names = train_val_test_split(data, data_labels)
-    print('Train / Validation / Test:  ', train_data.shape[0], ' / ', val_data.shape[0], ' / ', test_data.shape[0])
-
-    # augment training data
-    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=2000)
-    print('Augment size: ', train_aug.shape[0])
-
-    # add augmented data to training set
-    train_data = np.append(train_data, train_aug, axis=0)
-    train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
-    train_data_names = np.append(train_data_names, train_aug_names, axis=0)
-    print('Train + augmented size: ', train_data.shape[0], '\n')
-
-    edge_transform = False
-    if edge_transform:
-        for im in train_data:
-            im = cv2.Canny(im, 30, 188)
-        for im in val_data:
-            im = cv2.Canny(im, 30, 188)
-        for im in test_data:
-            im = cv2.Canny(im, 30, 188)
-
-    # normalize the images using training set statistics
-    train_data, val_data, test_data, mean_im, std_im = sub_mean(train_data, val_data, test_data)
-    train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = sub_mean(train_data_labels, val_data_labels, test_data_labels)
-
-    # save images to local directory
-    save_cdi_imgs(train_data, train_data_names, "train")
-    save_cdi_imgs(val_data, val_data_names, "val")
-    save_cdi_imgs(test_data, test_data_names, "test")
-
-    # save labels to local directory
-    save_cdi_labels(train_data_labels.tolist(), train_data_names)
-    save_cdi_labels(val_data_labels.tolist(), val_data_names)
-    save_cdi_labels(test_data_labels.tolist(), test_data_names)
-
-    # save image and label normalization stats for unscaling
-    save_cdi_cache([mean_im, std_im], [list(mean_label), list(std_label)])
 
 
 def calibrate_canny():
@@ -361,6 +383,89 @@ def calibrate_canny():
 
     cv2.destroyAllWindows()
 
+
+def main():
+    # load data (images and labels), center crop data, and down-scale data
+    n_imgs = None  # None loads all 304 images
+    n_aug = 4000   # number of augmented images to create
+    use_edges = False   # whether to use edge detection transformations
+
+    data, data_labels = load_data(n=n_imgs)
+    data, data_labels = crop_images(data, data_labels)
+    data, data_labels = rescale_images(data, data_labels, scale_dim=128)
+    print('\nShape of image array after crop and rescale: ', data.shape)
+    print('Shape of labels array after crop and rescale: ', data_labels.shape, '\n')
+
+    # split data in train, validation, and test sets
+    train_data, train_data_labels, train_data_names, \
+    val_data, val_data_labels, val_data_names, \
+    test_data, test_data_labels, test_data_names = train_val_test_split(data, data_labels)
+    print('Train / Validation / Test:  ', train_data.shape[0], ' / ', val_data.shape[0], ' / ', test_data.shape[0])
+
+    # augment training data
+    train_aug, train_aug_labels, train_aug_names = augment_data(train_data, train_data_labels, train_data_names, n=n_aug)
+    print('Augment size: ', train_aug.shape[0])
+
+    # add augmented data to training set
+    train_data = np.append(train_data, train_aug, axis=0)
+    train_data_labels = np.append(train_data_labels, train_aug_labels, axis=0)
+    train_data_names = np.append(train_data_names, train_aug_names, axis=0)
+    print('Train + augmented size: ', train_data.shape[0], '\n')
+
+    if use_edges:
+        train_data_edge, val_data_edge, test_data_edge = [], [], []
+        for im in train_data:
+            edge = np.array(cv2.Canny(im, 30, 188))
+            train_data_edge.append(edge)
+        for im in val_data:
+            edge = np.array(cv2.Canny(im, 30, 188))
+            val_data_edge.append(edge)
+        for im in test_data:
+            edge = np.array(cv2.Canny(im, 30, 188))
+            test_data_edge.append(edge)
+
+        # convert to numpy array
+        train_data_edge = np.array(train_data_edge)
+        val_data_edge = np.array(val_data_edge)
+        test_data_edge = np.array(test_data_edge)
+
+        # normalize edge images
+        train_data_edge, val_data_edge, test_data_edge, mean_im_edge, std_im_edge = sub_mean(train_data_edge, val_data_edge, test_data_edge)
+        train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = sub_mean(train_data_labels, val_data_labels, test_data_labels)
+
+        # save edge images to local directory
+        save_cdi_imgs(train_data_edge, train_data_names, "train")
+        save_cdi_imgs(val_data_edge, val_data_names, "val")
+        save_cdi_imgs(test_data_edge, test_data_names, "test")
+
+        # save original images to local directory for reference and visualization
+        save_cdi_imgs(train_data, train_data_names, "train_orig")
+        save_cdi_imgs(val_data, val_data_names, "val_orig")
+        save_cdi_imgs(test_data, test_data_names, "test_orig")
+
+        # save edge image and label normalization stats for unscaling
+        save_cdi_cache([mean_im_edge, std_im_edge], [list(mean_label), list(std_label)])
+
+    else:
+        # normalize the images using training set statistics
+        train_data, val_data, test_data, mean_im, std_im = sub_mean(train_data, val_data, test_data)
+        # train_data_labels, val_data_labels, test_data_labels, mean_label, std_label = norm_labels(train_data_labels, val_data_labels, test_data_labels)
+        train_data_labels, val_data_labels, test_data_labels = norm_labels(train_data_labels, val_data_labels,
+                                                                           test_data_labels)
+        mean_label = np.zeros(6)
+        std_label = np.ones(6) / 64
+        # save images to local directory
+        save_cdi_imgs(train_data, train_data_names, "train")
+        save_cdi_imgs(val_data, val_data_names, "val")
+        save_cdi_imgs(test_data, test_data_names, "test")
+
+        # save image and label normalization stats for unscaling
+        save_cdi_cache([mean_im, std_im], [list(mean_label), list(std_label)])
+
+    # save labels to local directory
+    save_cdi_labels(train_data_labels.tolist(), train_data_names)
+    save_cdi_labels(val_data_labels.tolist(), val_data_names)
+    save_cdi_labels(test_data_labels.tolist(), test_data_names)
 
 if __name__ == "__main__":
     main()

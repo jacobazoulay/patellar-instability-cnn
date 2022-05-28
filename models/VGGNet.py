@@ -6,34 +6,33 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import json
 import torch
 import torch.nn as nn
 import torch._utils
 from torch.autograd import Variable
 from torch.nn import functional as F
 import numpy as np
+import torchvision.models as models
 import os
 import json
 from shared.data_utils import un_norm_avg_key_dist
 from shared.data_utils import un_standard_avg_key_dist
 
 from common import weights_init, FullModel
-#from Model import KeypointModel as CDINet 
-from ModelPreTrained import KeypointPretrainedModel as CDINet #modifying this to use pretrained model
 
 
-
-def CDINet_setup(args):
+def VGGNet_setup(args):
     #setup path to save experiment results
     args.odir = 'results/%s/%s' % (args.dataset, args.net)
     args.odir += '_b%d' % args.batch_size
 
 
-def CDINet_create_model(args):
+def VGGNet_create_model(args):
     """ Creates model """
-    model = CDINet(args)
+    vgg16 = models.vgg16(pretrained=True)
+    vgg16.classifier[6] = nn.Linear(4096, args.num_classes)
+    model = vgg16
+
     args.gpus = list(range(torch.cuda.device_count()))
     args.nparams = sum([p.numel() for p in model.parameters()])
     print('Total number of parameters: {}'.format(args.nparams))
@@ -43,11 +42,11 @@ def CDINet_create_model(args):
         model = nn.DataParallel(model, device_ids=args.gpus).cuda()
     else:
         model = nn.DataParallel(model, device_ids=args.gpus)
-    model.apply(weights_init)
+    #model.apply(weights_init)
     return model
 
 
-def CDINet_step(args, item):
+def VGGNet_step(args, item):
     #compute forward pass
     imgs, gt, meta = item
     n,x,y = imgs.shape
@@ -63,7 +62,10 @@ def CDINet_step(args, item):
     targets = targets.contiguous()
 
     inp = inp.transpose(3,2).transpose(2,1)
+    #repeat input along channel dimensions since pre-trained VGG takes RGB
+    inp = inp.repeat([1,3,1,1])
     loss, pred = args.model.forward(inp, targets)
+
     loss = loss.mean()
 
     #compute metrics
@@ -79,3 +81,4 @@ def CDINet_step(args, item):
     outputs = [pred]
     loss_names = ['loss','avg_keypt_dist']
     return loss_names, losses, outputs
+

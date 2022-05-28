@@ -311,6 +311,7 @@ def augment_data(data, data_labels, data_names, n=100):
         print("length of right training data after augmentation: %d" % (n_right))
     else: # Don't balance left and right
         for i in idxs:
+            cur_name = data_names[i]
             augmented = augment(image = data[i], keypoints = keypoints[i])
             augmented_image = augmented['image']
             augmented_keypoints = augmented['keypoints']
@@ -406,7 +407,7 @@ def calibrate_canny():
 
 def main():
     # load data (images and labels), center crop data, and down-scale data
-    n_imgs = None  # None loads all 304 images
+    n_imgs = 5  # None loads all 304 images
     n_aug = 5000   # number of augmented images to create
     use_edges = False   # whether to use edge detection transformations
 

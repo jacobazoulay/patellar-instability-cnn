@@ -10,6 +10,7 @@ from collections import defaultdict
 from PIL import Image
 import io
 
+from datetime import datetime
 
 def load_img(args, path, method=0):
     img = np.load(path)
@@ -104,10 +105,13 @@ def save_prediction(args, img, imgname, gt_kpts, pred_kpts, bid, img_id, epoch):
     fig.patch.set_alpha(1)
     #plt.show(block=False)
     
+    now = datetime.now()
+    dt_str = now.strftime("%m/%d/%Y %H:%M:%S")
+
     plot_path = os.path.join(args.odir, 'images', str(epoch), str(bid))
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
-    fig.savefig(os.path.join(plot_path, imgname + str(img_id) + '.png'), facecolor=fig.get_facecolor())
+    fig.savefig(os.path.join(plot_path, imgname + str(img_id) + str(dt_str) + '.png'), facecolor=fig.get_facecolor())
     plt.close()
 
 

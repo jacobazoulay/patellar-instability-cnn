@@ -279,7 +279,7 @@ def metrics(split, args, epoch=0):
 
 def view_predictions(args, imgs, gts, preds, meta, bid, epoch):
     count = 0
-    max_save = 1 # number of images to save per batch
+    max_save = 10 # number of images to save per batch: originally 1
     print("Plotting predictions")
     for j in range(len(preds)):
         pred_kpts = preds[j]

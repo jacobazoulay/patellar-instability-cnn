@@ -245,72 +245,92 @@ def augment_data(data, data_labels, data_names, n=100):
                          zip(data_labels[:, 1], data_labels[:, 4]),
                          zip(data_labels[:, 2], data_labels[:, 5])))
 
-    #sort the data into left and right images to balance the data
-    left_data, left_keypoints, left_data_names = [], [], []
-    right_data, right_keypoints, right_data_names = [], [], []
-    for idx, name in enumerate(data_names):
-        direction = name.split("_")[0][len("JUPITER") + 5 - 1] # L or R
-        if direction not in ['R', 'L']:
-            raise Exception("invalid character %s for x-ray direction" % (direction))
-        if direction == 'R':
-            right_data.append(data[idx])
-            right_keypoints.append(keypoints[idx])
-            right_data_names.append(data_names[idx])
-        elif direction == 'L':
-            left_data.append(data[idx])
-            left_keypoints.append(keypoints[idx])
-            left_data_names.append(data_names[idx])
-    n_left = len(left_data)
-    n_right = len(right_data)
-    assert n_left > 0, "need at least one left image"
-    assert n_right > 0, "need at least one right image"
-    assert len(left_data) == len(left_keypoints) == len(left_data_names), "unequal left data and label lengths"
-    assert len(right_data) == len(right_keypoints) == len(right_data_names), "unequal right data and label lengths"
-    print("length of left training data before augmentation: %d" % (n_left))
-    print("length of right training data before augmentation: %d" % (n_right))                     
-
     aug_images, aug_labels, aug_names = [], [], []
 
-    left_idx = 0
-    right_idx = 0
-    for i in range(len(idxs)):
-        if n_left > n_right: # augment a right image
-            cur_data = right_data[right_idx]
-            cur_keypoints = right_keypoints[right_idx]
-            cur_name = right_data_names[right_idx]
-            right_idx = (right_idx + 1) % len(right_data)
-            n_right += 1
-        elif n_left <= n_right: # augment a left image
-            cur_data = left_data[left_idx]
-            cur_keypoints = left_keypoints[left_idx]
-            cur_name = left_data_names[left_idx]
-            left_idx = (left_idx + 1) % len(left_data)
-            n_left += 1
+    balanceLRFlag = False # Flag to determine if balance left and right images - set false to test specifically left or right images
 
-        #augmented = augment(image=data[idxs[i]], keypoints=keypoints[idxs[i]])
-        augmented = augment(image=cur_data, keypoints=cur_keypoints)
-        augmented_image = augmented['image']
-        augmented_keypoints = augmented['keypoints']
+    if balanceLRFlag:
+        #sort the data into left and right images to balance the data
+        left_data, left_keypoints, left_data_names = [], [], []
+        right_data, right_keypoints, right_data_names = [], [], []
+        for idx, name in enumerate(data_names):
+            direction = name.split("_")[0][len("JUPITER") + 5 - 1] # L or R
+            if direction not in ['R', 'L']:
+                raise Exception("invalid character %s for x-ray direction" % (direction))
+            if direction == 'R':
+                right_data.append(data[idx])
+                right_keypoints.append(keypoints[idx])
+                right_data_names.append(data_names[idx])
+            elif direction == 'L':
+                left_data.append(data[idx])
+                left_keypoints.append(keypoints[idx])
+                left_data_names.append(data_names[idx])
+        n_left = len(left_data)
+        n_right = len(right_data)
+        assert n_left > 0, "need at least one left image"
+        assert n_right > 0, "need at least one right image"
+        assert len(left_data) == len(left_keypoints) == len(left_data_names), "unequal left data and label lengths"
+        assert len(right_data) == len(right_keypoints) == len(right_data_names), "unequal right data and label lengths"
+        print("length of left training data before augmentation: %d" % (n_left))
+        print("length of right training data before augmentation: %d" % (n_right))                     
 
-        # reshape keypoint tuples back to original data_label shape
-        augmented_keypoints = [augmented_keypoints[0][0], augmented_keypoints[1][0],
-                               augmented_keypoints[2][0], augmented_keypoints[0][1],
-                               augmented_keypoints[1][1], augmented_keypoints[2][1]]
+        left_idx = 0
+        right_idx = 0
+        for i in range(len(idxs)):
+            if n_left > n_right: # augment a right image
+                cur_data = right_data[right_idx]
+                cur_keypoints = right_keypoints[right_idx]
+                cur_name = right_data_names[right_idx]
+                right_idx = (right_idx + 1) % len(right_data)
+                n_right += 1
+            elif n_left <= n_right: # augment a left image
+                cur_data = left_data[left_idx]
+                cur_keypoints = left_keypoints[left_idx]
+                cur_name = left_data_names[left_idx]
+                left_idx = (left_idx + 1) % len(left_data)
+                n_left += 1
 
-        #augmented_name = data_names[idxs[i]][:-4] + "_aug" + str((idxs[:i + 1] == idxs[i]).sum()) + ".dcm"
-        augmented_name = cur_name[:-4] + "_aug" + str(i) + ".dcm"
+            #augmented = augment(image=data[idxs[i]], keypoints=keypoints[idxs[i]])
+            augmented = augment(image=cur_data, keypoints=cur_keypoints)
+            augmented_image = augmented['image']
+            augmented_keypoints = augmented['keypoints']
 
-        aug_images.append(augmented_image)
-        aug_labels.append(augmented_keypoints)
-        aug_names.append(augmented_name)
+            # reshape keypoint tuples back to original data_label shape
+            augmented_keypoints = [augmented_keypoints[0][0], augmented_keypoints[1][0],
+                                augmented_keypoints[2][0], augmented_keypoints[0][1],
+                                augmented_keypoints[1][1], augmented_keypoints[2][1]]
+
+            #augmented_name = data_names[idxs[i]][:-4] + "_aug" + str((idxs[:i + 1] == idxs[i]).sum()) + ".dcm"
+            augmented_name = cur_name[:-4] + "_aug" + str(i) + ".dcm"
+
+            aug_images.append(augmented_image)
+            aug_labels.append(augmented_keypoints)
+            aug_names.append(augmented_name)
+
+        print("length of left training data after augmentation: %d" % (n_left))
+        print("length of right training data after augmentation: %d" % (n_right))
+    else: # Don't balance left and right
+        for i in idxs:
+            augmented = augment(image = data[i], keypoints = keypoints[i])
+            augmented_image = augmented['image']
+            augmented_keypoints = augmented['keypoints']
+
+            augmented_keypoints = [augmented_keypoints[0][0], augmented_keypoints[1][0],
+                                augmented_keypoints[2][0], augmented_keypoints[0][1],
+                                augmented_keypoints[1][1], augmented_keypoints[2][1]]
+
+            #augmented_name = data_names[idxs[i]][:-4] + "_aug" + str((idxs[:i + 1] == idxs[i]).sum()) + ".dcm"
+            augmented_name = cur_name[:-4] + "_aug" + str(i) + ".dcm"
+
+            aug_images.append(augmented_image)
+            aug_labels.append(augmented_keypoints)
+            aug_names.append(augmented_name)
 
     # convert to np array
     aug_images = np.array(aug_images)
     aug_labels = np.array(aug_labels)
     aug_names = np.array(aug_names)
 
-    print("length of left training data after augmentation: %d" % (n_left))
-    print("length of right training data after augmentation: %d" % (n_right))
     print(data_names)
     print(aug_names)
 

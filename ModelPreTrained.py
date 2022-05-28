@@ -13,7 +13,7 @@ class KeypointPretrainedModel(nn.Module):
         #self.model = torchvision.models.vgg16() # loads model architecture with random weights
         #self.model = torchvision.models.vgg16(pretrained = True) # loads model architecture with pretrained weights
         #self.model = torchvision.models.vgg16_bn(pretrained = True) # loads model architecture (with batch norm) with pretrained weights
-        self.model = torchvision.models.resnet50(pretrained = True)
+        self.model = torchvision.models.resnet18(pretrained = True)
         #self.model = pretrainedmodels.__dict__['resnet18'](pretrained='imagenet')
         
         #for param in self.model.parameters(): # Freeze model weights (remove to unfreeze all weights)

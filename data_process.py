@@ -234,7 +234,7 @@ def augment_data(data, data_labels, data_names, n=100):
         A.RandomBrightnessContrast(p=0.9),
         A.Rotate(limit=(-45, 45), p=1, border_mode=4),
         A.InvertImg(p=0.2),
-        # A.VerticalFlip(p=0.3),
+        #A.VerticalFlip(p=0.3),
         #A.HorizontalFlip(p=0.3)
     ], keypoint_params=A.KeypointParams(format='xy', remove_invisible=False))
 
@@ -387,7 +387,7 @@ def calibrate_canny():
 def main():
     # load data (images and labels), center crop data, and down-scale data
     n_imgs = None  # None loads all 304 images
-    n_aug = 4000   # number of augmented images to create
+    n_aug = 5000   # number of augmented images to create
     use_edges = False   # whether to use edge detection transformations
 
     data, data_labels = load_data(n=n_imgs)

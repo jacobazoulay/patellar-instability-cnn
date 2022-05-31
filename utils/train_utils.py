@@ -24,6 +24,7 @@ from loss_utils import getLabelCount, getmeaniou, getconfmatrix
 from data_process import show_image
 from CDINet import *
 from AlexNet import *
+from VGGNet import *
 import json
 
 

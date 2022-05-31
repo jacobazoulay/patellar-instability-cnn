@@ -49,6 +49,23 @@ def un_standard_avg_key_dist(target, pred):
     out = torch.mean((d1 + d2 + d3) / 3)
     return out
 
+def compute_CDI(superior_patella_x, inferior_patella_x, tibial_plateau_x, superior_patella_y, inferior_patella_y, tibial_plateau_y):
+    # x and y distances between inferior patella and tibia
+    patella_to_anterior_tibia_x = tibial_plateau_x - inferior_patella_x
+    patella_to_anterior_tibia_y = tibial_plateau_y - inferior_patella_y
+
+    # x and y distances between superior and inferior patella
+    patella_articular_surface_x = superior_patella_x - inferior_patella_x
+    patella_articular_surface_y = superior_patella_y - inferior_patella_y
+
+    # lengths of lines in pixels (unit doesn't matter since CDI is a ratio)
+    patella_to_anterior_tibia_pixel_length = torch.sqrt(patella_to_anterior_tibia_x**2 + patella_to_anterior_tibia_y**2)
+    patella_articular_surface_pixel_length = torch.sqrt(patella_articular_surface_x**2 + patella_articular_surface_y**2)
+
+    caton_deschamps_index = patella_to_anterior_tibia_pixel_length/patella_articular_surface_pixel_length 
+
+    return caton_deschamps_index
+
 
 def show_image(image, label=None):
     fig = plt.figure(figsize=(5, 5))

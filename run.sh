@@ -2,7 +2,7 @@
 #source venv/bin/activate
 
 PROGRAM='main.py'
-NET='UNet' #CDINet or AlexNet    CDINet is the baseline
+NET='VGGNet' #CDINet or AlexNet    CDINet is the baseline
 DATASET='CDI'
 BATCH_SIZE=8
 OPTIM='sgd'
@@ -12,7 +12,7 @@ SEED=1
 TRAIN=1
 EVAL=$((1-$TRAIN))
 RESUME=0
-SAVE_NTH_EPOCH=10
+SAVE_NTH_EPOCH=5
 TEST_NTH_EPOCH=$SAVE_NTH_EPOCH
 TEST_SPLIT='val' #train, val. Train is to overfit
 NWORKERS=4

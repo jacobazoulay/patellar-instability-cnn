@@ -15,8 +15,11 @@ import numpy as np
 import torchvision.models as models
 import os
 import json
+import pingouin as pg
+import pandas as pd
 from shared.data_utils import un_norm_avg_key_dist
 from shared.data_utils import un_standard_avg_key_dist
+from shared.data_utils import compute_CDI
 
 from common import weights_init, FullModel
 
@@ -69,16 +72,43 @@ def VGGNet_step(args, item):
     loss = loss.mean()
 
     #compute metrics
-    # label_cache_stats = json.load(open(os.path.join(os.getcwd(), "data/CDI/cache/label_stats.json")))
-    # label_mean = label_cache_stats['label_mean']
-    # label_std = label_cache_stats['label_std']
-    # avg_keypoint_dist = un_norm_avg_key_dist(label_mean, label_std, targets, pred)
+    avg_keypoint_dist = un_norm_avg_key_dist(args.label_mean, args.label_std, targets, pred)
     avg_keypoint_dist = un_standard_avg_key_dist(targets, pred)
     if len(args.gpus) > 0:
         avg_keypoint_dist = avg_keypoint_dist.detach().cpu().numpy()
 
-    losses = [loss, avg_keypoint_dist]
+    #un_normalize pred and targets
+    gt_unorm = (targets + 1) * 64
+    pred_unorm = (pred + 1) * 64
+
+    # compute CDI
+    pred_superior_patella_x, pred_inferior_patella_x, pred_tibial_plateau_x, pred_superior_patella_y, pred_inferior_patella_y, pred_tibial_plateau_y = pred_unorm[:,0], pred_unorm[:,1], pred_unorm[:,2], pred_unorm[:,3], pred_unorm[:,4], pred_unorm[:,5]
+    gt_superior_patella_x, gt_inferior_patella_x, gt_tibial_plateau_x, gt_superior_patella_y, gt_inferior_patella_y, gt_tibial_plateau_y = gt_unorm[:,0], gt_unorm[:,1], gt_unorm[:,2], gt_unorm[:,3], gt_unorm[:,4], gt_unorm[:,5]
+    pred_CDI = compute_CDI(pred_superior_patella_x, pred_inferior_patella_x, pred_tibial_plateau_x, pred_superior_patella_y, pred_inferior_patella_y, pred_tibial_plateau_y)
+    gt_CDI = compute_CDI(gt_superior_patella_x, gt_inferior_patella_x, gt_tibial_plateau_x, gt_superior_patella_y, gt_inferior_patella_y, gt_tibial_plateau_y)
+    # mean absolute CDI distance btwn gt and pred CDI
+    mean_abs_CDI_dist = torch.sum(torch.abs(gt_CDI - pred_CDI)) / len(pred_CDI)
+
+    # compute CDI Intra class correlation(ICC) coefficient
+    # ICC can tell you how close 2 sets of labels (e.g., human vs human or model vs human) are to a y=x fit. Ideally, ICC=1.
+    # Between two human raters (benchmark values that you're trying to beat): CDI ICC - 0.644
+    pred_CDI_np = pred_CDI
+    gt_CDI_np = gt_CDI
+    if len(args.gpus) > 0:
+        pred_CDI_np = pred_CDI.detach().cpu().numpy()
+        gt_CDI_np = gt_CDI.detach().cpu().numpy()
+    df = pd.DataFrame({"data_ids": list(range(0, len(inp))) + list(range(0, len(inp))),
+                       "judge":  ['gt']*len(inp) + ['pred']*len(inp),
+                       "CDI": gt_CDI_np.tolist() + pred_CDI_np.tolist()})
+    iccs = pg.intraclass_corr(data=df, targets='data_ids', raters='judge', ratings='CDI')
+    icc = iccs['ICC'][2] # Single fixed raters (absolute distance between cdis), -ve values indicate poor reliability
+
+    mean_abs_CDI_dist_np = mean_abs_CDI_dist
+    if len(args.gpus) > 0:
+        mean_abs_CDI_dist_np = mean_abs_CDI_dist.detach().cpu().numpy()
+
+    losses = [loss, avg_keypoint_dist, icc, mean_abs_CDI_dist_np]
     outputs = [pred]
-    loss_names = ['loss','avg_keypt_dist']
+    loss_names = ['loss','avg_keypt_dist', 'avg_abs_icc', 'avg_abs_CDI_dist']
     return loss_names, losses, outputs
 

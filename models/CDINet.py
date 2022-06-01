@@ -101,7 +101,7 @@ def CDINet_step(args, item):
                        "judge":  ['gt']*len(inp) + ['pred']*len(inp),
                        "CDI": gt_CDI_np.tolist() + pred_CDI_np.tolist()})
     iccs = pg.intraclass_corr(data=df, targets='data_ids', raters='judge', ratings='CDI')
-    icc = iccs['ICC'][2] # Single fixed raters (absolute distance between cdis), -ve values indicate poor reliability
+    icc = iccs['ICC'][1] # ICC2 Single random raters (absolute distance between cdis), -ve values indicate poor reliability
 
     mean_abs_CDI_dist_np = mean_abs_CDI_dist
     if len(args.gpus) > 0:

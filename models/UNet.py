@@ -16,7 +16,7 @@ import os
 import json
 import pingouin as pg
 import pandas as pd
-from shared.data_utils import un_standard_avg_key_dist
+from shared.data_utils import un_standard_avg_key_dist, un_norm_avg_key_dist
 from shared.data_utils import compute_CDI
 
 from common import weights_init, FullModel

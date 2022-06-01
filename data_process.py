@@ -409,7 +409,7 @@ def calibrate_canny():
 def main():
     # load data (images and labels), center crop data, and down-scale data
     n_imgs = None  # None loads all 304 images
-    n_aug = 5000   # number of augmented images to create
+    n_aug = 4000   # number of augmented images to create
     use_edges = False   # whether to use edge detection transformations
 
     data, data_labels = load_data(n=n_imgs)

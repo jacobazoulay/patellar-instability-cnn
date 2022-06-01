@@ -23,8 +23,8 @@ from shared.data_utils import un_standard_avg_key_dist
 from shared.data_utils import compute_CDI
 
 from common import weights_init, FullModel
-from Model import KeypointModel as CDINet 
-#from ModelPreTrained import KeypointPretrainedModel as CDINet #modifying this to use pretrained model
+#from Model import KeypointModel as CDINet 
+from ModelPreTrained import KeypointPretrainedModel as CDINet #modifying this to use pretrained model
 
 
 

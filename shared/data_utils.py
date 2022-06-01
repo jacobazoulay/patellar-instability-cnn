@@ -28,9 +28,9 @@ def un_normalize(mean_im, std_im, *argv):
     return out
 
 
-def un_norm_avg_key_dist(mean_im, std_im, target, pred):
-    mean_im = torch.tensor(mean_im)
-    std_im = torch.tensor(std_im)
+def un_norm_avg_key_dist(mean_im, std_im, target, pred, device='cpu'):
+    mean_im = torch.tensor(mean_im).to(device)
+    std_im = torch.tensor(std_im).to(device)
     target = target * std_im + mean_im
     pred = pred * std_im + mean_im
     d1 = torch.sqrt(torch.square(target[:, 0] - pred[:, 0]) + torch.square(target[:, 1] - pred[:, 1]))

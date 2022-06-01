@@ -56,9 +56,11 @@ def VGGNet_step(args, item):
     imgs = imgs.reshape(n,x,y,1)
     n,x,y,c = imgs.shape
     args.gpus = list(range(torch.cuda.device_count()))
+    device = 'cpu'
     if len(args.gpus) > 0:
         targets = Variable(torch.from_numpy(gt), requires_grad=False).float().cuda()
         inp = Variable(torch.from_numpy(imgs), requires_grad=False).float().cuda()
+        device = 'cuda'
     else:
         targets = Variable(torch.from_numpy(gt), requires_grad=False).float()
         inp = Variable(torch.from_numpy(imgs), requires_grad=False).float()
@@ -72,7 +74,7 @@ def VGGNet_step(args, item):
     loss = loss.mean()
 
     #compute metrics
-    avg_keypoint_dist = un_norm_avg_key_dist(args.label_mean, args.label_std, targets, pred)
+    avg_keypoint_dist = un_norm_avg_key_dist(args.label_mean, args.label_std, targets, pred, device)
     avg_keypoint_dist = un_standard_avg_key_dist(targets, pred)
     if len(args.gpus) > 0:
         avg_keypoint_dist = avg_keypoint_dist.detach().cpu().numpy()

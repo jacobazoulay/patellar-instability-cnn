@@ -100,7 +100,7 @@ def CDINet_step(args, item):
     if len(args.gpus) > 0:
         pred_CDI_np = pred_CDI.detach().cpu().numpy()
         gt_CDI_np = gt_CDI.detach().cpu().numpy()
-    df = pd.DataFrame({"data_ids": list(range(0, len(inp))) + list(range(0, len(inp))),
+    df = pd.DataFrame({"data_ids": list(range(1, len(inp)+1)) + list(range(1, len(inp)+1)),
                        "judge":  ['gt']*len(inp) + ['pred']*len(inp),
                        "CDI": gt_CDI_np.tolist() + pred_CDI_np.tolist()})
     iccs = pg.intraclass_corr(data=df, targets='data_ids', raters='judge', ratings='CDI')

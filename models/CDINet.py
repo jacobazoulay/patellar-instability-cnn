@@ -68,6 +68,9 @@ def CDINet_step(args, item):
     targets = targets.contiguous()
 
     inp = inp.transpose(3,2).transpose(2,1)
+    if args.net == "AlexNet" and args.pretrained:
+        #repeat input along channel dimensions since pre-trained AlexNet takes RGB
+        inp = inp.repeat([1,3,1,1])
     loss, pred = args.model.forward(inp, targets)
     loss = loss.mean()
 

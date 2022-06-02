@@ -9,6 +9,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch._utils
+import torchvision.models as models
 from torch.autograd import Variable
 from torch.nn import functional as F
 import numpy as np
@@ -25,6 +26,9 @@ def AlexNet_setup(args):
 def AlexNet_create_model(args):
     """ Creates model """
     model = AlexNet(args)
+    if args.pretrained:
+        model = models.alexnet(pretrained=True)
+        model.classifier[6] = nn.Linear(4096, args.num_classes)
     args.gpus = list(range(torch.cuda.device_count()))
     args.nparams = sum([p.numel() for p in model.parameters()])
     print('Total number of parameters: {}'.format(args.nparams))
@@ -34,7 +38,8 @@ def AlexNet_create_model(args):
         model = nn.DataParallel(model, device_ids=args.gpus).cuda()
     else:
         model = nn.DataParallel(model, device_ids=args.gpus)
-    model.apply(weights_init)
+    if (not args.pretrained):
+        model.apply(weights_init)
     return model
 
 

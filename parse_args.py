@@ -21,8 +21,10 @@ def parse_args():
     parser.add_argument('--dataset', default='CDI', help='Dataset')
     parser.add_argument('--epochs', default=300, type=int, help='number of epochs')
     parser.add_argument('--nworkers', default=4, type=int, help='number of workers')
+    parser.add_argument('--pretrained', default=False, type=bool, help='use a pretrained model')
     parser.add_argument('--test_split', default='val', type=str, choices=['train', 'val'], help='data split to test on.')
     parser.add_argument('--use_edges', default=False, type=bool, help='Flag indicating if image edge detection is used.')
+    
 
     args = parser.parse_args()
 

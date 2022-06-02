@@ -2,7 +2,8 @@
 #source venv/bin/activate
 
 PROGRAM='main.py'
-NET='CDINet' #CDINet or AlexNet    CDINet is the baseline
+NET='AlexNet' #CDINet or AlexNet    CDINet is the baseline
+PRETRAINED=1 #0 for original, 1 for pretrained; currently only used by AlexNet
 DATASET='CDI'
 BATCH_SIZE=8
 OPTIM='adam'
@@ -20,4 +21,4 @@ EPOCHS=100
 
 
 python3 -u $PROGRAM --net $NET --seed $SEED --resume $RESUME --eval $EVAL --batch_size $BATCH_SIZE --dataset $DATASET --epochs $EPOCHS --nworkers $NWORKERS --save_nth_epoch $SAVE_NTH_EPOCH --test_nth_epoch $TEST_NTH_EPOCH --train $TRAIN --resume $RESUME \
---optim $OPTIM --lr $LR --momentum $MOMENTUM --test_split $TEST_SPLIT
+--optim $OPTIM --lr $LR --momentum $MOMENTUM --test_split $TEST_SPLIT --pretrained $PRETRAINED

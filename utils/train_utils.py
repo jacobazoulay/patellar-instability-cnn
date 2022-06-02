@@ -240,7 +240,8 @@ def metrics(split, args, epoch=0):
         N = len(data_processes[0].data_paths)
         batch_size = data_processes[0].batch_size
         Nb = int(N/batch_size)
-        acc = []
+        overall_avg_abs_cdi_dist = []
+        overall_avg_icc = []
         overall_avg_keypt_dist = []
         preds = []
         truths = []
@@ -255,6 +256,8 @@ def metrics(split, args, epoch=0):
             N, W, H = imgs.shape
             lnm, losses, outputs = args.step(args, item)
             overall_avg_keypt_dist.append(losses[1])
+            overall_avg_icc.append(losses[2])
+            overall_avg_abs_cdi_dist.append(losses[3])
             pred = outputs[0].cpu().numpy()
             preds.extend(pred)
             truths.extend(gts)
@@ -267,15 +270,33 @@ def metrics(split, args, epoch=0):
         preds = np.asarray(preds)
         truths = np.asarray(truths)
         o_avg_kpt_dist = np.mean(overall_avg_keypt_dist)
+        o_avg_icc = np.mean(overall_avg_icc)
+        o_avg_cdi = np.mean(overall_avg_abs_cdi_dist)
+
         odir = args.odir + '/average_keypoint_dist'
-        if not os.path.exists(odir):
-            os.mkdir(odir)
+        os.makedirs(odir, exist_ok=True)
         outfile = odir + '/results_%s_%d.txt' % (split, epoch + 1)
         
-        #save results
+        #save average keypoint distance
         print("Saving results to %s ..." % (outfile))
         with open(outfile, 'w') as f:
             f.write('average_keypoint_dist: %.5f\n' % (o_avg_kpt_dist))
+        
+        #save icc
+        odir = args.odir + '/icc'
+        os.makedirs(odir, exist_ok=True)
+        outfile = odir + '/results_%s_%d.txt' % (split, epoch + 1)
+        print("Saving results to %s ..." % (outfile))
+        with open(outfile, 'w') as f:
+            f.write('average_icc: %.5f\n' % (o_avg_icc))
+
+        #save cdi
+        odir = args.odir + '/cdi'
+        os.makedirs(odir, exist_ok=True)
+        outfile = odir + '/results_%s_%d.txt' % (split, epoch + 1)
+        print("Saving results to %s ..." % (outfile))
+        with open(outfile, 'w') as f:
+            f.write('average_cdi: %.5f\n' % (o_avg_cdi))
 
 
 def view_predictions(args, imgs, gts, preds, meta, bid, epoch):

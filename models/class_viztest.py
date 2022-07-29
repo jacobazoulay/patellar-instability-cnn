@@ -14,6 +14,8 @@ import torch.nn as nn
 import torch._utils
 from torch.autograd import Variable
 import json
+import pandas as pd
+import pingouin as pg
 
 
 def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate):
@@ -23,27 +25,10 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
 
     target.backward(torch.ones(target.shape))
 
-    mask = np.zeros_like(img.detach().numpy())
-
-    target_y = target_y.detach().numpy()
-
-    target_y = (target_y + 1) *64
-
-    x = np.vstack((np.max(target_y[:, :3], axis=1), np.min(target_y[:, :3], axis=1))).T
-    y = np.vstack((np.max(target_y[:, 3:], axis=1), np.min(target_y[:, 3:], axis=1))).T
-
-    for i in range(mask.shape[0]):
-        print(int(x[i, 0]), int(x[i, 1]))
-        mask[i, :, int(y[i, 1]) - 20:int(y[i, 0]) + 20, int(x[i, 1]) - 20:int(x[i, 0]) +20] = 1
-
-    print(mask[0,0].tolist())
-
-    mask = torch.from_numpy(mask)
     g = img.grad
     dX = learning_rate * g
     with torch.no_grad():
-        img += dX * mask
-        pass
+        img += dX
     img.grad.zero_()
 
 
@@ -74,8 +59,7 @@ def create_class_visualization(target_y, model, dtype, **kwargs):
 
     # Randomly initialize the image as a PyTorch Tensor, and make it requires gradient.
     img = torch.rand((16, 3, 128, 128)).type(dtype)
-    img = torch.zeros_like(img)
-    # img = img * 2 - 1
+    img = img * 2 - 1
     img = img.requires_grad_()
 
     for t in range(num_iterations):
@@ -186,31 +170,106 @@ def main():
     dtype = torch.FloatTensor
     model.type(dtype)
 
-    img_odir = "/Users/jacobazoulay/Repos/CS231N_Project/data/CDI/train/"
+    test_dir = "/Users/jacobazoulay/Repos/CS231N_Project/data/CDI/test/"
     pathlabel = "/Users/jacobazoulay/Repos/CS231N_Project/data/CDI/labels.json"
+    mean_impath = "/Users/jacobazoulay/Repos/CS231N_Project/data/CDI/cache/im_mean.npy"
+    std_impath = "/Users/jacobazoulay/Repos/CS231N_Project/data/CDI/cache/im_std.npy"
+
+    im_mean = np.load(mean_impath)
+    im_std = np.load(std_impath)
+
     labels = json.load(open(pathlabel))
-    label_no_aug = [key for key in list(labels.keys()) if 'aug' not in key]
-    img_names = random.choices(label_no_aug, k=16)
 
-    imgs = torch.empty((16, 3, 128, 128))
-    targets = torch.empty((16, 6))
-    for i, name in enumerate(img_names):
-        try:
-            img = np.load(img_odir + name + '.npy')
-        except:
-            try:
-                img = np.load((img_odir + name + '.npy').replace('train', 'test'))
-            except:
-                img = np.load((img_odir + name + '.npy').replace('train', 'val'))
+    test_list = os.listdir(test_dir)
+    test_list = [name[:-4] for name in test_list]
 
+    imgs = torch.empty((len(test_list), 3, 128, 128))
+    targets = torch.empty((len(test_list), 6))
+    for i, name in enumerate(test_list):
+        img = np.load((test_dir + name + '.npy'))
         img = torch.from_numpy(img)
+        print(img.shape)
         imgs[i] = img
+        # print(imgs[i].shape)
 
         target = labels[name]
         target = torch.tensor(target)
         targets[i] = target
 
-    out = create_class_visualization(targets, model, dtype)
+    print(targets.shape)
+    print(imgs.shape)
+
+    out = model.forward(imgs)
+
+    print(out.shape)
+
+    targets = (targets + 1) * 64
+    out = (out + 1) * 64
+
+    import pandas as pd
+
+    gts_np = targets.detach().numpy()  # convert to Numpy array
+    df = pd.DataFrame(gts_np)  # convert to a dataframe
+    df.to_csv("gts", index=False)  # save to file
+
+    preds_np = out.detach().numpy()  # convert to Numpy array
+    df = pd.DataFrame(preds_np)  # convert to a dataframe
+    df.to_csv("preds", index=False)  # save to file
+
+    df = pd.DataFrame({"data_ids": list(range(0, len(gts_np))) + list(range(0, len(gts_np))),
+                       "judge":  ['gt']*len(gts_np) + ['pred']*len(gts_np),
+                       "CDI": gts_np.tolist() + preds_np.tolist()})
+    # print(df)
+    # iccs = pg.intraclass_corr(data=df, targets='data_ids', raters='judge', ratings='CDI')
+    # icc = iccs['ICC'][5] # ICC2 Single random raters (absolute distance between cdis), -ve values indicate poor reliability
+    # print(iccs)
+
+    imgs = imgs * im_std + im_mean
+
+    # for i, im in enumerate([45, 50, 40, 32]):
+    for i, im in enumerate([0, 5, 48, 54]):
+        plt.subplot(2, 2, i + 1)
+        plt.imshow(imgs[im, 0], cmap='bone')
+        plt.scatter(gts_np[im, 0], gts_np[im, 3], c='green', s=8)  # superior patella loc
+        plt.scatter(gts_np[im, 1], gts_np[im, 4], c='green', s=8)  # inferior patella loc
+        plt.scatter(gts_np[im, 2], gts_np[im, 5], c='green', s=8)  # tibial_plateau loc
+
+        plt.scatter(preds_np[im, 0], preds_np[im, 3], c='red', s=8)  # superior patella loc
+        plt.scatter(preds_np[im, 1], preds_np[im, 4], c='red', s=8)  # inferior patella loc
+        plt.scatter(preds_np[im, 2], preds_np[im, 5], c='red', s=8)  # tibial_plateau loc
+
+        d1 = np.sqrt(np.square(gts_np[im, 0] - preds_np[im, 0]) + np.square(gts_np[im, 1] - preds_np[im, 1]))
+        d2 = np.sqrt(np.square(gts_np[im, 2] - preds_np[im, 2]) + np.square(gts_np[im, 3] - preds_np[im, 3]))
+        d3 = np.sqrt(np.square(gts_np[im, 4] - preds_np[im, 4]) + np.square(gts_np[im, 5] - preds_np[im, 5]))
+        out = np.mean((d1 + d2 + d3) / 3)
+        out = 100 * (out / 128)
+
+        plt.title('Avg Pixel Error: ' + str("%.2f" % round(float(out), 2)) + '%')
+        plt.axis('off')
+    plt.show()
+
+    # for i, im in enumerate([59, 29, 2, 23]):
+    for i, im in enumerate([15, 30, 53, 42]):
+        plt.subplot(2, 2, i + 1)
+        plt.imshow(imgs[im, 0], cmap='bone')
+        plt.scatter(gts_np[im, 0], gts_np[im, 3], c='green', s=8)  # superior patella loc
+        plt.scatter(gts_np[im, 1], gts_np[im, 4], c='green', s=8)  # inferior patella loc
+        plt.scatter(gts_np[im, 2], gts_np[im, 5], c='green', s=8)  # tibial_plateau loc
+
+        plt.scatter(preds_np[im, 0], preds_np[im, 3], c='red', s=8)  # superior patella loc
+        plt.scatter(preds_np[im, 1], preds_np[im, 4], c='red', s=8)  # inferior patella loc
+        plt.scatter(preds_np[im, 2], preds_np[im, 5], c='red', s=8)  # tibial_plateau loc
+
+        d1 = np.sqrt(np.square(gts_np[im, 0] - preds_np[im, 0]) + np.square(gts_np[im, 1] - preds_np[im, 1]))
+        d2 = np.sqrt(np.square(gts_np[im, 2] - preds_np[im, 2]) + np.square(gts_np[im, 3] - preds_np[im, 3]))
+        d3 = np.sqrt(np.square(gts_np[im, 4] - preds_np[im, 4]) + np.square(gts_np[im, 5] - preds_np[im, 5]))
+        out = np.mean((d1 + d2 + d3) / 3)
+        out = 100 * (out / 128)
+
+        plt.title('Avg Pixel Error: ' + str(round(float(out), 2)) + '%')
+        plt.axis('off')
+    plt.show()
+
 
 
 if __name__ == "__main__":
